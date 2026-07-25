@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "document-tools"
+version = "0.1.0"
+description = "Local-first Python document processing toolkit"
+readme = "roadmap_eksekusi_document_tools.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+document-tools = "document_tools.cli:main"
+
+[project.optional-dependencies]
+phase1 = [
+  "pypdf>=5.0.0",
+  "python-docx>=1.1.2",
+  "docxcompose>=1.4.0",
+  "Pillow>=10.0.0",
+  "reportlab>=4.0.0",
+]
+phase2 = [
+  "pdf2docx>=0.5.8",
+  "pymupdf>=1.24.0",
+  "mammoth>=1.6.0",
+  "openpyxl>=3.1.0",
+]
+phase3 = [
+  "customtkinter>=5.2.0",
+  "tkinterdnd2>=0.3.0",
+  "pyinstaller>=6.0.0",
+]
+dev = [
+  "pytest>=8.0.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -9,9 +9,13 @@ import {
   Sparkles,
   Download,
   Minimize2,
+  Minimize,
   X,
   Laptop,
   Check,
+  Hash,
+  Printer,
+  Camera,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -25,10 +29,14 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: Grid },
-    { id: 'organizer', label: 'Page Organizer', icon: FileText },
-    { id: 'merge', label: 'Merge PDF', icon: Layers },
-    { id: 'split', label: 'Split PDF', icon: Scissors },
+    { id: 'organizer', label: 'Organizer', icon: FileText },
+    { id: 'merge', label: 'Merge', icon: Layers },
+    { id: 'split', label: 'Split', icon: Scissors },
+    { id: 'compress-pdf', label: 'Compress PDF', icon: Minimize },
+    { id: 'page-number', label: 'Page Numbers', icon: Hash },
+    { id: 'grayscale', label: 'Grayscale B&W', icon: Printer },
     { id: 'watermark', label: 'Watermark', icon: Shield },
+    { id: 'pas-foto', label: 'Pas Foto', icon: Camera },
     { id: 'png-to-jpg', label: 'PNG to JPG', icon: ImageIcon },
     { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
     { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },
@@ -54,7 +62,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
                   DocuCraft
                 </span>
                 <span className="text-[10px] text-zinc-500 font-mono">
-                  v1.0
+                  v1.2
                 </span>
               </div>
             </div>

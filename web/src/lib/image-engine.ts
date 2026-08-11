@@ -36,6 +36,31 @@ export interface FaviconBundleResult {
   htmlSnippet: string;
 }
 
+export interface PasFotoPreset {
+  id: '2x3' | '3x4' | '4x6' | 'passport';
+  label: string;
+  widthMm: number;
+  heightMm: number;
+  widthPx: number; // at 300 DPI: (mm / 25.4) * 300
+  heightPx: number;
+}
+
+export const PAS_FOTO_PRESETS: Record<string, PasFotoPreset> = {
+  '2x3': { id: '2x3', label: '2 × 3 cm', widthMm: 21.6, heightMm: 27.9, widthPx: 255, heightPx: 330 },
+  '3x4': { id: '3x4', label: '3 × 4 cm', widthMm: 27.9, heightMm: 38.1, widthPx: 330, heightPx: 450 },
+  '4x6': { id: '4x6', label: '4 × 6 cm', widthMm: 38.1, heightMm: 55.9, widthPx: 450, heightPx: 660 },
+  passport: { id: 'passport', label: 'Paspor (3.5 × 4.5 cm)', widthMm: 35, heightMm: 45, widthPx: 413, heightPx: 531 },
+};
+
+export interface PasFotoOptions {
+  preset: '2x3' | '3x4' | '4x6' | 'passport' | 'custom';
+  customWidthPx?: number;
+  customHeightPx?: number;
+  backgroundColor?: string; // e.g. '#db2728' (Merah CPNS), '#2563eb' (Biru KTP), '#ffffff' (Putih), or ''
+  quality?: number; // 10 to 100, default 95
+  maxFileSizeKb?: number; // e.g. 200 or 300
+}
+
 /**
  * Loads an image File into an HTMLImageElement for canvas processing.
  */
@@ -103,157 +128,47 @@ export async function compressImage(
 
   const originalSize = file.size;
   const compressedSize = blob.size;
-  const reductionPercentage = Math.max(0, Math.round(((originalSize - compressedSize) / originalSize) * 100));
+  const reduction = Math.max(0, Math.round(((originalSize - compressedSize) / originalSize) * 100));
 
   return {
     blob,
     dataUrl,
     originalSize,
     compressedSize,
-    reductionPercentage,
+    reductionPercentage: reduction,
     width,
     height,
   };
 }
 
-/**
- * Generates an ICO binary structure and PNG web pack assets.
- */
-export async function generateFaviconBundle(file: File): Promise<FaviconBundleResult> {
-  const img = await loadImageElement(file);
-  const zip = new JSZip();
-  const files: Array<{ name: string; blob: Blob; dataUrl: string; size: number }> = [];
-
-  const targets = [
-    { name: 'favicon-16x16.png', size: 16 },
-    { name: 'favicon-32x32.png', size: 32 },
-    { name: 'favicon-48x48.png', size: 48 },
-    { name: 'apple-touch-icon.png', size: 180 },
-    { name: 'android-chrome-192x192.png', size: 192 },
-    { name: 'android-chrome-512x512.png', size: 512 },
-  ];
-
-  // Generate PNG icons
-  const pngBlobsForIco: Array<{ size: number; buffer: ArrayBuffer }> = [];
-
-  for (const t of targets) {
-    const canvas = document.createElement('canvas');
-    canvas.width = t.size;
-    canvas.height = t.size;
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(img, 0, 0, t.size, t.size);
-      const dataUrl = canvas.toDataURL('image/png');
-      const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b!), 'image/png'));
-      const buffer = await blob.arrayBuffer();
-
-      if ([16, 32, 48].includes(t.size)) {
-        pngBlobsForIco.push({ size: t.size, buffer });
-      }
-
-      files.push({ name: t.name, blob, dataUrl, size: t.size });
-      zip.file(t.name, buffer);
-    }
-  }
-
-  // Create single multi-size .ico file
-  const icoBlob = createIcoBlobFromPngBuffers(pngBlobsForIco);
-  const icoBuffer = await icoBlob.arrayBuffer();
-  files.unshift({ name: 'favicon.ico', blob: icoBlob, dataUrl: '', size: 32 });
-  zip.file('favicon.ico', icoBuffer);
-
-  // Generate HTML tags snippet
-  const htmlSnippet = `<!-- Favicon & Web Icons -->
-<link rel="icon" type="image/x-icon" href="/favicon.ico" />
-<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
-<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png" />
-<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
-<link rel="manifest" href="/site.webmanifest" />
-<meta name="theme-color" content="#090d16" />`;
-
-  zip.file('favicon_html.txt', htmlSnippet);
-
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-  return {
-    zipBlob,
-    singleIcoBlob: icoBlob,
-    files,
-    htmlSnippet,
-  };
-}
-
-/**
- * Creates a valid Windows ICO format file containing embedded PNG images.
- */
-function createIcoBlobFromPngBuffers(pngs: Array<{ size: number; buffer: ArrayBuffer }>): Blob {
-  // ICO Header: 6 bytes (Reserved 2, Type 2, Count 2)
-  const headerSize = 6;
-  const dirEntrySize = 16;
-  const numImages = pngs.length;
-  let offset = headerSize + numImages * dirEntrySize;
-
-  const totalSize = offset + pngs.reduce((acc, p) => acc + p.buffer.byteLength, 0);
-  const icoBuffer = new ArrayBuffer(totalSize);
-  const view = new DataView(icoBuffer);
-
-  // Header
-  view.setUint16(0, 0, true); // Reserved
-  view.setUint16(2, 1, true); // Type (1 for ICO)
-  view.setUint16(4, numImages, true); // Count
-
-  // Directory entries
-  pngs.forEach((png, i) => {
-    const entryOffset = headerSize + i * dirEntrySize;
-    view.setUint8(entryOffset, png.size >= 256 ? 0 : png.size); // Width
-    view.setUint8(entryOffset + 1, png.size >= 256 ? 0 : png.size); // Height
-    view.setUint8(entryOffset + 2, 0); // Palette count
-    view.setUint8(entryOffset + 3, 0); // Reserved
-    view.setUint16(entryOffset + 4, 1, true); // Color planes
-    view.setUint16(entryOffset + 6, 32, true); // Bits per pixel
-    view.setUint32(entryOffset + 8, png.buffer.byteLength, true); // Size of image data
-    view.setUint32(entryOffset + 12, offset, true); // Offset of image data
-
-    // Copy PNG bytes
-    new Uint8Array(icoBuffer, offset, png.buffer.byteLength).set(new Uint8Array(png.buffer));
-    offset += png.buffer.byteLength;
-  });
-
-  return new Blob([icoBuffer], { type: 'image/x-icon' });
-}
-
 export interface ImageToPdfOptions {
-  margin?: number;
+  pageSize?: 'A4' | 'Letter';
   orientation?: 'portrait' | 'landscape' | 'auto';
-  pageSize?: 'A4' | 'LETTER';
+  margin?: number; // points
 }
 
 /**
- * Converts multiple image files into a single unified PDF document.
+ * Compiles multiple raster image files into a multi-page PDF document.
  */
 export async function imagesToPdf(
-  imageFiles: File[],
+  files: File[],
   options: ImageToPdfOptions = {}
 ): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
+  const pdfDoc = await PDFDocument.create();
   const margin = options.margin ?? 20;
 
-  for (const file of imageFiles) {
+  for (const file of files) {
     const arrayBuffer = await file.arrayBuffer();
-    const isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+    const bytes = new Uint8Array(arrayBuffer);
 
-    let pdfImage;
-    if (isPng) {
-      pdfImage = await doc.embedPng(arrayBuffer);
+    let embeddedImage;
+    if (file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')) {
+      embeddedImage = await pdfDoc.embedPng(bytes);
     } else {
-      pdfImage = await doc.embedJpg(arrayBuffer);
+      embeddedImage = await pdfDoc.embedJpg(bytes);
     }
 
-    const imgWidth = pdfImage.width;
-    const imgHeight = pdfImage.height;
+    const { width: imgWidth, height: imgHeight } = embeddedImage;
 
     let isLandscape = false;
     if (options.orientation === 'landscape') {
@@ -264,34 +179,152 @@ export async function imagesToPdf(
       isLandscape = imgWidth > imgHeight;
     }
 
-    const [pageWidth, pageHeight] = isLandscape
-      ? [PageSizes.A4[1], PageSizes.A4[0]]
-      : [PageSizes.A4[0], PageSizes.A4[1]];
+    const [baseW, baseH] = options.pageSize === 'Letter' ? PageSizes.Letter : PageSizes.A4;
+    const pageWidth = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
+    const pageHeight = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
 
-    const availableWidth = pageWidth - margin * 2;
-    const availableHeight = pageHeight - margin * 2;
+    const printableW = pageWidth - margin * 2;
+    const printableH = pageHeight - margin * 2;
 
-    const scale = Math.min(availableWidth / imgWidth, availableHeight / imgHeight);
-    const scaledWidth = imgWidth * scale;
-    const scaledHeight = imgHeight * scale;
+    const scale = Math.min(printableW / imgWidth, printableH / imgHeight, 1);
+    const drawW = imgWidth * scale;
+    const drawH = imgHeight * scale;
 
-    const x = margin + (availableWidth - scaledWidth) / 2;
-    const y = margin + (availableHeight - scaledHeight) / 2;
+    const posX = margin + (printableW - drawW) / 2;
+    const posY = margin + (printableH - drawH) / 2;
 
-    const page = doc.addPage([pageWidth, pageHeight]);
-    page.drawImage(pdfImage, {
-      x,
-      y,
-      width: scaledWidth,
-      height: scaledHeight,
+    const page = pdfDoc.addPage([pageWidth, pageHeight]);
+    page.drawImage(embeddedImage, {
+      x: posX,
+      y: posY,
+      width: drawW,
+      height: drawH,
     });
   }
 
-  return await doc.save();
+  return await pdfDoc.save();
 }
 
 /**
- * Converts a PNG image to high-quality JPG/JPEG client-side with background color fill for alpha channels.
+ * Creates multi-resolution .ico binaries and complete PWA icon bundles.
+ */
+export async function generateFaviconBundle(sourceImage: File): Promise<FaviconBundleResult> {
+  const img = await loadImageElement(sourceImage);
+  const zip = new JSZip();
+  const files: Array<{ name: string; blob: Blob; dataUrl: string; size: number }> = [];
+
+  const targets = [
+    { name: 'favicon-16x16.png', size: 16 },
+    { name: 'favicon-32x32.png', size: 32 },
+    { name: 'apple-touch-icon.png', size: 180 },
+    { name: 'android-chrome-192x192.png', size: 192 },
+    { name: 'android-chrome-512x512.png', size: 512 },
+  ];
+
+  for (const t of targets) {
+    const canvas = document.createElement('canvas');
+    canvas.width = t.size;
+    canvas.height = t.size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) continue;
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, t.size, t.size);
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b || new Blob()), 'image/png'));
+
+    files.push({ name: t.name, blob, dataUrl, size: t.size });
+    zip.file(t.name, blob);
+  }
+
+  const ico16 = files.find((f) => f.name === 'favicon-16x16.png')!.blob;
+  const ico32 = files.find((f) => f.name === 'favicon-32x32.png')!.blob;
+  const singleIcoBlob = await createMultiResolutionIco([ico16, ico32]);
+
+  zip.file('favicon.ico', singleIcoBlob);
+
+  const manifestContent = JSON.stringify(
+    {
+      name: 'DocuCraft Studio',
+      short_name: 'DocuCraft',
+      icons: [
+        { src: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
+      ],
+      theme_color: '#09090b',
+      background_color: '#09090b',
+      display: 'standalone',
+    },
+    null,
+    2
+  );
+  zip.file('site.webmanifest', manifestContent);
+
+  const htmlSnippet = `<!-- Favicon & Web Icons -->
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">`;
+
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+  return {
+    zipBlob,
+    singleIcoBlob,
+    files,
+    htmlSnippet,
+  };
+}
+
+async function createMultiResolutionIco(pngBlobs: Blob[]): Promise<Blob> {
+  const pngBuffers = await Promise.all(pngBlobs.map((b) => b.arrayBuffer()));
+  const numImages = pngBuffers.length;
+
+  const headerSize = 6;
+  const dirEntrySize = 16;
+  let totalOffset = headerSize + numImages * dirEntrySize;
+
+  const header = new Uint8Array(headerSize);
+  header[2] = 1;
+  header[4] = numImages;
+
+  const entries: Uint8Array[] = [];
+  for (let i = 0; i < numImages; i++) {
+    const buf = pngBuffers[i];
+    const size = i === 0 ? 16 : 32;
+
+    const entry = new Uint8Array(dirEntrySize);
+    entry[0] = size;
+    entry[1] = size;
+    entry[2] = 0;
+    entry[3] = 0;
+    entry[4] = 1;
+    entry[6] = 32;
+
+    const len = buf.byteLength;
+    entry[8] = len & 0xff;
+    entry[9] = (len >> 8) & 0xff;
+    entry[10] = (len >> 16) & 0xff;
+    entry[11] = (len >> 24) & 0xff;
+
+    entry[12] = totalOffset & 0xff;
+    entry[13] = (totalOffset >> 8) & 0xff;
+    entry[14] = (totalOffset >> 16) & 0xff;
+    entry[15] = (totalOffset >> 24) & 0xff;
+
+    entries.push(entry);
+    totalOffset += len;
+  }
+
+  const parts = [header, ...entries, ...pngBuffers];
+  return new Blob(parts as any, { type: 'image/x-icon' });
+}
+
+/**
+ * Converts a PNG image to JPG/JPEG with solid background fill.
  */
 export async function convertPngToJpg(
   file: File,
@@ -314,7 +347,6 @@ export async function convertPngToJpg(
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Could not initialize 2D canvas context.');
 
-  // Solid background fill to properly handle transparent PNGs without dark artifacts
   ctx.fillStyle = bgColor;
   ctx.fillRect(0, 0, width, height);
 
@@ -344,7 +376,7 @@ export async function convertPngToJpg(
 }
 
 /**
- * Batch converts multiple PNG files to JPG/JPEG and packages them into a ZIP if multiple.
+ * Batch converts multiple PNG files to JPG/JPEG.
  */
 export async function batchConvertPngToJpg(
   files: File[],
@@ -367,4 +399,102 @@ export async function batchConvertPngToJpg(
   }
 
   return { items, zipBlob };
+}
+
+/**
+ * Crops, resizes, and processes formal ID / Pas Foto with standard presets and background options.
+ */
+export async function processPasFoto(
+  file: File,
+  options: PasFotoOptions,
+  cropArea?: { x: number; y: number; width: number; height: number }
+): Promise<{ blob: Blob; dataUrl: string; width: number; height: number; size: number }> {
+  const img = await loadImageElement(file);
+
+  let targetWidth = 330;
+  let targetHeight = 450;
+
+  if (options.preset !== 'custom') {
+    const p = PAS_FOTO_PRESETS[options.preset] || PAS_FOTO_PRESETS['3x4'];
+    targetWidth = p.widthPx;
+    targetHeight = p.heightPx;
+  } else {
+    targetWidth = options.customWidthPx || 330;
+    targetHeight = options.customHeightPx || 450;
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas context not available');
+
+  // Fill background if specified (Merah, Biru, etc.)
+  if (options.backgroundColor) {
+    ctx.fillStyle = options.backgroundColor;
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+  } else {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+  }
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  // Crop parameters
+  const naturalW = img.naturalWidth || img.width;
+  const naturalH = img.naturalHeight || img.height;
+
+  let sx = 0;
+  let sy = 0;
+  let sWidth = naturalW;
+  let sHeight = naturalH;
+
+  if (cropArea) {
+    sx = cropArea.x;
+    sy = cropArea.y;
+    sWidth = cropArea.width;
+    sHeight = cropArea.height;
+  } else {
+    // Proportional center-fit to target aspect ratio
+    const targetAspect = targetWidth / targetHeight;
+    const imgAspect = naturalW / naturalH;
+
+    if (imgAspect > targetAspect) {
+      sHeight = naturalH;
+      sWidth = naturalH * targetAspect;
+      sx = (naturalW - sWidth) / 2;
+      sy = 0;
+    } else {
+      sWidth = naturalW;
+      sHeight = naturalW / targetAspect;
+      sx = 0;
+      sy = (naturalH - sHeight) / 2;
+    }
+  }
+
+  ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, targetWidth, targetHeight);
+
+  let quality = (options.quality ?? 95) / 100;
+  let blob: Blob = await new Promise((res) => canvas.toBlob((b) => res(b || new Blob()), 'image/jpeg', quality));
+
+  // If user requested a max file size constraint (e.g. < 200KB for CPNS)
+  if (options.maxFileSizeKb && options.maxFileSizeKb > 0) {
+    const maxBytes = options.maxFileSizeKb * 1024;
+    while (blob.size > maxBytes && quality > 0.2) {
+      quality -= 0.08;
+      blob = await new Promise((res) => canvas.toBlob((b) => res(b || new Blob()), 'image/jpeg', quality));
+    }
+  }
+
+  const dataUrl = canvas.toDataURL('image/jpeg', quality);
+
+  return {
+    blob,
+    dataUrl,
+    width: targetWidth,
+    height: targetHeight,
+    size: blob.size,
+  };
 }

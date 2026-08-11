@@ -7,7 +7,11 @@ const OverviewView = lazy(() => import('./views/OverviewView').then((m) => ({ de
 const OrganizerView = lazy(() => import('./views/OrganizerView').then((m) => ({ default: m.OrganizerView })));
 const MergeView = lazy(() => import('./views/MergeView').then((m) => ({ default: m.MergeView })));
 const SplitView = lazy(() => import('./views/SplitView').then((m) => ({ default: m.SplitView })));
+const CompressPdfView = lazy(() => import('./views/CompressPdfView').then((m) => ({ default: m.CompressPdfView })));
+const PageNumberView = lazy(() => import('./views/PageNumberView').then((m) => ({ default: m.PageNumberView })));
+const GrayscalePdfView = lazy(() => import('./views/GrayscalePdfView').then((m) => ({ default: m.GrayscalePdfView })));
 const WatermarkView = lazy(() => import('./views/WatermarkView').then((m) => ({ default: m.WatermarkView })));
+const PasFotoView = lazy(() => import('./views/PasFotoView').then((m) => ({ default: m.PasFotoView })));
 const PngToJpgView = lazy(() => import('./views/PngToJpgView').then((m) => ({ default: m.PngToJpgView })));
 const PdfToImageView = lazy(() => import('./views/PdfToImageView').then((m) => ({ default: m.PdfToImageView })));
 const ImageToPdfView = lazy(() => import('./views/ImageToPdfView').then((m) => ({ default: m.ImageToPdfView })));
@@ -67,7 +71,11 @@ export function App() {
           {currentTool === 'organizer' && <OrganizerView />}
           {currentTool === 'merge' && <MergeView />}
           {currentTool === 'split' && <SplitView />}
+          {currentTool === 'compress-pdf' && <CompressPdfView />}
+          {currentTool === 'page-number' && <PageNumberView />}
+          {currentTool === 'grayscale' && <GrayscalePdfView />}
           {currentTool === 'watermark' && <WatermarkView />}
+          {currentTool === 'pas-foto' && <PasFotoView />}
           {currentTool === 'png-to-jpg' && <PngToJpgView />}
           {currentTool === 'pdf-to-image' && <PdfToImageView />}
           {currentTool === 'image-to-pdf' && <ImageToPdfView />}

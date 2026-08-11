@@ -9,6 +9,10 @@ import {
   ArrowRight,
   Download,
   Minimize2,
+  Minimize,
+  Hash,
+  Printer,
+  Camera,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -39,11 +43,39 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
       tag: 'Precision',
     },
     {
+      id: 'compress-pdf',
+      title: 'PDF Compressor',
+      description: 'Reduce PDF file weights directly in RAM with Extreme, Recommended, or Mild presets.',
+      icon: Minimize,
+      tag: 'Optimizer',
+    },
+    {
+      id: 'page-number',
+      title: 'Page Numbering',
+      description: 'Insert header & footer page indices with custom templates, offsets, and cover skip options.',
+      icon: Hash,
+      tag: 'Essential',
+    },
+    {
+      id: 'grayscale',
+      title: 'Grayscale & B&W',
+      description: 'Convert color PDFs to crisp monochrome documents to save printer ink and clean up scans.',
+      icon: Printer,
+      tag: 'Print-Ready',
+    },
+    {
       id: 'watermark',
       title: 'PDF Watermark',
       description: 'Apply semi-transparent diagonal text stamps with angle, opacity, and size controls.',
       icon: Shield,
       tag: 'Security',
+    },
+    {
+      id: 'pas-foto',
+      title: 'Pas Foto Studio',
+      description: 'Format photos for official ID standards (2×3, 3×4, 4×6, Paspor) with Red/Blue backgrounds.',
+      icon: Camera,
+      tag: 'Official',
     },
     {
       id: 'png-to-jpg',

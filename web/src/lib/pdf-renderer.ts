@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { PDFDocument } from 'pdf-lib';
 
 /**
  * PDF Renderer using pdfjs-dist / Canvas for client-side visual thumbnail & image generation.
@@ -125,6 +126,189 @@ export async function renderPdfPagesToImagesZip(
   return await zip.generateAsync({ type: 'blob' });
 }
 
+export interface CompressPdfOptions {
+  level?: 'extreme' | 'recommended' | 'mild';
+  customQuality?: number; // 0.1 to 1.0
+  customScale?: number; // 1.0 to 2.0
+  onProgress?: (current: number, total: number) => void;
+}
+
+/**
+ * Compresses a PDF file by downsampling embedded raster streams and optimizing page structures in browser RAM.
+ */
+export async function compressPdf(
+  pdfData: Uint8Array,
+  options: CompressPdfOptions = {}
+): Promise<Uint8Array> {
+  const pdfjs = await getPdfJs();
+  if (!pdfjs || !pdfjs.getDocument) {
+    throw new Error('PDF Rendering engine could not be initialized.');
+  }
+
+  let scale = 1.4;
+  let quality = 0.72;
+
+  if (options.level === 'extreme') {
+    scale = 1.0;
+    quality = 0.50;
+  } else if (options.level === 'mild') {
+    scale = 1.8;
+    quality = 0.85;
+  }
+
+  if (options.customScale) scale = options.customScale;
+  if (options.customQuality) quality = options.customQuality;
+
+  const copyBuffer = new Uint8Array(pdfData).buffer;
+  const loadingTask = pdfjs.getDocument({ data: copyBuffer });
+  const pdf = await loadingTask.promise;
+  const totalPages = pdf.numPages;
+
+  const outDoc = await PDFDocument.create();
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (options.onProgress) {
+      options.onProgress(i, totalPages);
+    }
+
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    if (!context) continue;
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+    }).promise;
+
+    const dataUrl = canvas.toDataURL('image/jpeg', quality);
+    const base64Data = dataUrl.split(',')[1];
+    const binaryStr = atob(base64Data);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let b = 0; b < binaryStr.length; b++) {
+      bytes[b] = binaryStr.charCodeAt(b);
+    }
+
+    const embeddedJpg = await outDoc.embedJpg(bytes);
+    const originalWidth = viewport.width / scale;
+    const originalHeight = viewport.height / scale;
+
+    const outPage = outDoc.addPage([originalWidth, originalHeight]);
+    outPage.drawImage(embeddedJpg, {
+      x: 0,
+      y: 0,
+      width: originalWidth,
+      height: originalHeight,
+    });
+  }
+
+  return await outDoc.save();
+}
+
+/**
+ * Converts all pages of a PDF into ink-efficient Grayscale / High Contrast B&W PDF.
+ */
+export async function renderPdfToGrayscalePdf(
+  pdfData: Uint8Array,
+  contrast = 1.0, // 0.8 to 2.0
+  brightness = 0, // -50 to 50
+  scale = 2.0,
+  onProgress?: (current: number, total: number) => void
+): Promise<Uint8Array> {
+  const pdfjs = await getPdfJs();
+  if (!pdfjs || !pdfjs.getDocument) {
+    throw new Error('PDF Rendering engine could not be initialized.');
+  }
+
+  const copyBuffer = new Uint8Array(pdfData).buffer;
+  const loadingTask = pdfjs.getDocument({ data: copyBuffer });
+  const pdf = await loadingTask.promise;
+  const totalPages = pdf.numPages;
+
+  const outDoc = await PDFDocument.create();
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (onProgress) {
+      onProgress(i, totalPages);
+    }
+
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale });
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    if (!context) continue;
+
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+
+    await page.render({
+      canvasContext: context,
+      viewport: viewport,
+    }).promise;
+
+    // Apply Grayscale & Contrast adjustments to pixel buffer
+    const imgData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const d = imgData.data;
+
+    for (let p = 0; p < d.length; p += 4) {
+      const r = d[p];
+      const g = d[p + 1];
+      const b = d[p + 2];
+
+      // Luminance Grayscale formula
+      let gray = 0.299 * r + 0.587 * g + 0.114 * b + brightness;
+
+      // Contrast multiplier
+      if (contrast !== 1.0) {
+        gray = (gray - 128) * contrast + 128;
+      }
+
+      gray = Math.max(0, Math.min(255, gray));
+
+      d[p] = gray;
+      d[p + 1] = gray;
+      d[p + 2] = gray;
+    }
+
+    context.putImageData(imgData, 0, 0);
+
+    // Convert to JPEG Uint8Array
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
+    const base64Data = dataUrl.split(',')[1];
+    const binaryStr = atob(base64Data);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let b = 0; b < binaryStr.length; b++) {
+      bytes[b] = binaryStr.charCodeAt(b);
+    }
+
+    const embeddedJpg = await outDoc.embedJpg(bytes);
+    const originalWidth = viewport.width / scale;
+    const originalHeight = viewport.height / scale;
+
+    const outPage = outDoc.addPage([originalWidth, originalHeight]);
+    outPage.drawImage(embeddedJpg, {
+      x: 0,
+      y: 0,
+      width: originalWidth,
+      height: originalHeight,
+    });
+  }
+
+  return await outDoc.save();
+}
+
 /**
  * Fallback visual card when web worker / wasm renderer is initializing.
  */
@@ -136,27 +320,21 @@ function createFallbackPageThumbnail(pageNumber: number): string {
   const ctx = canvas.getContext('2d');
   if (!ctx) return '';
 
-  ctx.fillStyle = '#1e293b';
+  ctx.fillStyle = '#121215';
   ctx.fillRect(0, 0, 160, 220);
 
-  ctx.strokeStyle = '#3b82f6';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#27272a';
+  ctx.lineWidth = 1;
   ctx.strokeRect(10, 10, 140, 200);
 
-  ctx.fillStyle = '#475569';
+  ctx.fillStyle = '#27272a';
   ctx.fillRect(25, 30, 110, 8);
   ctx.fillRect(25, 50, 110, 5);
   ctx.fillRect(25, 65, 90, 5);
   ctx.fillRect(25, 80, 105, 5);
-  ctx.fillRect(25, 95, 80, 5);
 
-  ctx.beginPath();
-  ctx.arc(80, 145, 24, 0, 2 * Math.PI);
-  ctx.fillStyle = '#2563eb';
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 16px Inter, sans-serif';
+  ctx.fillStyle = '#fafafa';
+  ctx.font = 'bold 14px Inter, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(`P${pageNumber}`, 80, 145);

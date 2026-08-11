@@ -41,6 +41,23 @@ export interface MergePdfOptions {
   margin?: number; // default 15 points
 }
 
+export type PageNumberPosition =
+  | 'bottom-center'
+  | 'bottom-right'
+  | 'bottom-left'
+  | 'top-center'
+  | 'top-right'
+  | 'top-left';
+
+export interface PageNumberOptions {
+  position?: PageNumberPosition;
+  formatTemplate?: string; // e.g. "Page {n} of {total}", "{n}", "- {n} -", "Halaman {n} dari {total}"
+  fontSize?: number;
+  skipCover?: boolean;
+  startNumber?: number;
+  marginOffset?: number; // in points
+}
+
 /**
  * Gets the total number of pages in a PDF document.
  */
@@ -103,40 +120,37 @@ export async function mergePdfs(
         } else if (orientationMode === 'portrait') {
           isLandscape = false;
         } else {
-          // auto orientation detection
-          const isPhysicallyLandscape =
-            rotationAngle === 90 || rotationAngle === 270
-              ? origHeight > origWidth
-              : origWidth > origHeight;
-          isLandscape = isPhysicallyLandscape;
+          // Auto: match source page aspect ratio
+          const effectiveWidth = rotationAngle === 90 || rotationAngle === 270 ? origHeight : origWidth;
+          const effectiveHeight = rotationAngle === 90 || rotationAngle === 270 ? origWidth : origHeight;
+          isLandscape = effectiveWidth > effectiveHeight;
         }
 
         const targetWidth = isLandscape ? Math.max(baseWidth, baseHeight) : Math.min(baseWidth, baseHeight);
         const targetHeight = isLandscape ? Math.min(baseWidth, baseHeight) : Math.max(baseWidth, baseHeight);
 
-        // Effective dimensions of embedded page
-        const effWidth = (rotationAngle === 90 || rotationAngle === 270) ? origHeight : origWidth;
-        const effHeight = (rotationAngle === 90 || rotationAngle === 270) ? origWidth : origHeight;
+        // Calculate printable area after margins
+        const printableWidth = targetWidth - margin * 2;
+        const printableHeight = targetHeight - margin * 2;
 
-        // Calculate scaling factor to fit cleanly inside target page with margin
-        const availWidth = Math.max(10, targetWidth - margin * 2);
-        const availHeight = Math.max(10, targetHeight - margin * 2);
-        const scaleFactor = Math.min(availWidth / effWidth, availHeight / effHeight);
+        // Calculate proportional scale to fit cleanly inside printable area
+        const scaleX = printableWidth / origWidth;
+        const scaleY = printableHeight / origHeight;
+        const scale = Math.min(scaleX, scaleY);
 
-        const scaledWidth = effWidth * scaleFactor;
-        const scaledHeight = effHeight * scaleFactor;
+        const scaledWidth = origWidth * scale;
+        const scaledHeight = origHeight * scale;
 
-        const posX = margin + (availWidth - scaledWidth) / 2;
-        const posY = margin + (availHeight - scaledHeight) / 2;
+        // Center on target page
+        const posX = margin + (printableWidth - scaledWidth) / 2;
+        const posY = margin + (printableHeight - scaledHeight) / 2;
 
         const newPage = mergedDoc.addPage([targetWidth, targetHeight]);
-
-        // Draw embedded page scaled and centered with white background
         newPage.drawPage(embeddedPage, {
           x: posX,
           y: posY,
-          xScale: scaleFactor,
-          yScale: scaleFactor,
+          xScale: scale,
+          yScale: scale,
         });
       }
     }
@@ -146,49 +160,66 @@ export async function mergePdfs(
 }
 
 /**
- * Splits a PDF into individual 1-page PDF documents packaged into a ZIP.
+ * Splits a PDF into individual single-page documents and packages them in a ZIP.
  */
 export async function splitPdfIntoSinglePages(
   pdfData: Uint8Array,
-  baseName: string
+  baseName = 'document'
 ): Promise<Blob> {
   const srcDoc = await PDFDocument.load(pdfData, { ignoreEncryption: true });
-  const pageCount = srcDoc.getPageCount();
-  const cleanBase = baseName.replace(/\.pdf$/i, '');
+  const totalPages = srcDoc.getPageCount();
   const zip = new JSZip();
+  const cleanBase = baseName.replace(/\.pdf$/i, '');
 
-  for (let i = 0; i < pageCount; i++) {
+  for (let i = 0; i < totalPages; i++) {
     const singleDoc = await PDFDocument.create();
     const [copiedPage] = await singleDoc.copyPages(srcDoc, [i]);
     singleDoc.addPage(copiedPage);
+
     const bytes = await singleDoc.save();
-    const pageStr = String(i + 1).padStart(String(pageCount).length, '0');
-    zip.file(`${cleanBase}_page_${pageStr}.pdf`, bytes);
+    const padIndex = String(i + 1).padStart(String(totalPages).length, '0');
+    zip.file(`${cleanBase}_page_${padIndex}.pdf`, bytes);
   }
 
   return await zip.generateAsync({ type: 'blob' });
 }
 
 /**
- * Splits a PDF by customized page ranges (e.g. ['1-3', '4-5']) packaged into a ZIP.
+ * Splits a PDF by custom user-defined page ranges.
  */
 export async function splitPdfByRanges(
   pdfData: Uint8Array,
-  ranges: string[],
-  baseName: string
+  ranges: string[], // e.g. ['1-3', '4-5', '6']
+  baseName = 'document'
 ): Promise<Blob> {
   const srcDoc = await PDFDocument.load(pdfData, { ignoreEncryption: true });
   const totalPages = srcDoc.getPageCount();
-  const cleanBase = baseName.replace(/\.pdf$/i, '');
   const zip = new JSZip();
+  const cleanBase = baseName.replace(/\.pdf$/i, '');
 
-  for (let rIdx = 0; rIdx < ranges.length; rIdx++) {
-    const rangeStr = ranges[rIdx];
-    const parts = rangeStr.split('-').map((s) => parseInt(s.trim()));
-    if (parts.length === 0 || isNaN(parts[0])) continue;
+  for (const rangeStr of ranges) {
+    const trimmed = rangeStr.trim();
+    if (!trimmed) continue;
 
-    const start = Math.max(1, Math.min(parts[0], totalPages));
-    const end = parts.length > 1 && !isNaN(parts[1]) ? Math.max(start, Math.min(parts[1], totalPages)) : start;
+    let start = 1;
+    let end = 1;
+
+    if (trimmed.includes('-')) {
+      const parts = trimmed.split('-').map((s) => parseInt(s.trim(), 10));
+      start = isNaN(parts[0]) ? 1 : Math.max(1, parts[0]);
+      end = isNaN(parts[1]) ? totalPages : Math.min(totalPages, parts[1]);
+    } else {
+      const single = parseInt(trimmed, 10);
+      if (isNaN(single)) continue;
+      start = Math.max(1, single);
+      end = Math.min(totalPages, single);
+    }
+
+    if (start > end) {
+      const temp = start;
+      start = end;
+      end = temp;
+    }
 
     const indicesToCopy: number[] = [];
     for (let p = start; p <= end; p++) {
@@ -295,6 +326,83 @@ export async function watermarkPdf(
       color: rgb(cr, cg, cb),
       opacity: opacity,
       rotate: degrees(angle),
+    });
+  }
+
+  return await doc.save();
+}
+
+/**
+ * Adds page numbers to a PDF document with flexible positions, formats, and margin offsets.
+ */
+export async function addPageNumbersToPdf(
+  pdfData: Uint8Array,
+  options: PageNumberOptions = {}
+): Promise<Uint8Array> {
+  const doc = await PDFDocument.load(pdfData, { ignoreEncryption: true });
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const pages = doc.getPages();
+  const totalPages = pages.length;
+
+  const position = options.position || 'bottom-center';
+  const template = options.formatTemplate || 'Page {n} of {total}';
+  const fontSize = options.fontSize || 10;
+  const skipCover = options.skipCover ?? false;
+  const startNumber = options.startNumber || 1;
+  const marginOffset = options.marginOffset || 25;
+
+  const effectiveTotal = skipCover ? Math.max(1, totalPages - 1) : totalPages;
+
+  for (let i = 0; i < totalPages; i++) {
+    if (skipCover && i === 0) continue;
+
+    const page = pages[i];
+    const { width, height } = page.getSize();
+
+    const currentNumber = (skipCover ? i - 1 : i) + startNumber;
+    const text = template
+      .replace(/\{n\}/g, String(currentNumber))
+      .replace(/\{total\}/g, String(effectiveTotal));
+
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+    const textHeight = font.heightAtSize(fontSize);
+
+    let x = marginOffset;
+    let y = marginOffset;
+
+    switch (position) {
+      case 'bottom-left':
+        x = marginOffset;
+        y = marginOffset;
+        break;
+      case 'bottom-center':
+        x = (width - textWidth) / 2;
+        y = marginOffset;
+        break;
+      case 'bottom-right':
+        x = width - marginOffset - textWidth;
+        y = marginOffset;
+        break;
+      case 'top-left':
+        x = marginOffset;
+        y = height - marginOffset - textHeight;
+        break;
+      case 'top-center':
+        x = (width - textWidth) / 2;
+        y = height - marginOffset - textHeight;
+        break;
+      case 'top-right':
+        x = width - marginOffset - textWidth;
+        y = height - marginOffset - textHeight;
+        break;
+    }
+
+    page.drawText(text, {
+      x,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0.2, 0.2, 0.2),
     });
   }
 

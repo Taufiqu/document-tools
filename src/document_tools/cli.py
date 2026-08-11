@@ -8,11 +8,13 @@ from pathlib import Path
 
 from document_tools.exceptions import DocumentToolsError, ValidationError
 from document_tools.features import (
+    CompressPdfOptions,
     ConvertOptions,
     ConvertService,
     ExtractImagesOptions,
     ExtractService,
     ExtractTextOptions,
+    FaviconOptions,
     ImagesToPdfOptions,
     MergeOptions,
     MergeService,
@@ -81,9 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
     reorder_pages.add_argument("--order", required=True, help="Urutan halaman baru, mis. 3,1,2")
     reorder_pages.set_defaults(handler=_handle_reorder_pages)
 
-    compress_pdf = subparsers.add_parser("compress-pdf", help="Kompresi dasar PDF")
+    compress_pdf = subparsers.add_parser("compress-pdf", help="Kompresi PDF (Smart Vector & Rasterize)")
     compress_pdf.add_argument("source", help="Path file PDF sumber")
     compress_pdf.add_argument("-o", "--output", required=True, help="Path file PDF output")
+    compress_pdf.add_argument("--mode", choices=["smart", "rasterize"], default="smart", help="Mode kompresi (smart/rasterize, default: smart)")
+    compress_pdf.add_argument("--quality", type=int, default=60, help="Kualitas kompresi gambar 1-100 (default: 60)")
+    compress_pdf.add_argument("--dpi", type=int, default=150, help="Resolusi rendering untuk mode rasterize 72-600 (default: 150)")
     compress_pdf.set_defaults(handler=_handle_compress_pdf)
 
     protect_pdf = subparsers.add_parser("protect-pdf", help="Tambahkan password pada PDF")
@@ -120,14 +125,22 @@ def build_parser() -> argparse.ArgumentParser:
     convert_pdf_to_images = subparsers.add_parser("convert-pdf-to-images", help="Konversi setiap halaman PDF menjadi gambar")
     convert_pdf_to_images.add_argument("source", help="Path file PDF sumber")
     convert_pdf_to_images.add_argument("-o", "--output-dir", required=True, help="Folder output gambar")
-    convert_pdf_to_images.add_argument("--format", dest="image_format", default="png", choices=["png", "jpg"], help="Format gambar output (default: png)")
+    convert_pdf_to_images.add_argument("--format", dest="image_format", default="png", choices=["png", "jpg", "webp", "tiff"], help="Format gambar output (default: png)")
     convert_pdf_to_images.add_argument("--dpi", type=int, default=150, help="Resolusi gambar dalam DPI (72-600, default: 150)")
     convert_pdf_to_images.set_defaults(handler=_handle_convert_pdf_to_images)
 
     convert_images_to_pdf = subparsers.add_parser("convert-images-to-pdf", help="Gabungkan satu atau beberapa gambar menjadi satu PDF")
-    convert_images_to_pdf.add_argument("inputs", nargs="+", help="Daftar file gambar input (JPG/PNG)")
+    convert_images_to_pdf.add_argument("inputs", nargs="+", help="Daftar file gambar input (JPG/PNG/WEBP/TIFF/ICO)")
     convert_images_to_pdf.add_argument("-o", "--output", required=True, help="Path file PDF output")
     convert_images_to_pdf.set_defaults(handler=_handle_convert_images_to_pdf)
+
+    generate_favicon = subparsers.add_parser("generate-favicon", help="Buat favicon .ico atau Web Favicon Pack dari gambar")
+    generate_favicon.add_argument("source", help="Path file gambar sumber")
+    generate_favicon.add_argument("-o", "--output-dir", help="Folder output (default: folder file asal)")
+    generate_favicon.add_argument("--web-pack", action="store_true", help="Buat bundle lengkap web icons & HTML tag snippet")
+    generate_favicon.add_argument("--sizes", help="Daftar ukuran kustom, misal 16,32,48,256")
+    generate_favicon.add_argument("--html", action="store_true", help="Generate file tag HTML snippet")
+    generate_favicon.set_defaults(handler=_handle_generate_favicon)
 
     convert_pdf_to_md = subparsers.add_parser("convert-pdf-to-md", help="Konversi teks PDF ke Markdown")
     convert_pdf_to_md.add_argument("source", help="Path file PDF sumber")
@@ -276,6 +289,13 @@ def _handle_compress_pdf(args: argparse.Namespace):
     return service.compress_pdf(
         source=DocumentInput.from_path(args.source),
         output_path=Path(args.output),
+        options=CompressPdfOptions(
+            source=DocumentInput.from_path(args.source),
+            output_path=Path(args.output),
+            mode=args.mode,
+            quality=args.quality,
+            dpi=args.dpi,
+        ),
     )
 
 
@@ -349,6 +369,21 @@ def _handle_convert_images_to_pdf(args: argparse.Namespace):
         ImagesToPdfOptions(
             sources=[DocumentInput.from_path(path) for path in args.inputs],
             output_path=Path(args.output),
+        )
+    )
+
+
+def _handle_generate_favicon(args: argparse.Namespace):
+    service = ConvertService()
+    sizes = _parse_page_numbers(args.sizes) if args.sizes else None
+    out_dir = Path(args.output_dir) if args.output_dir else Path(args.source).parent
+    return service.generate_favicon(
+        FaviconOptions(
+            source=DocumentInput.from_path(args.source),
+            output_dir=out_dir,
+            sizes=sizes,
+            web_pack=args.web_pack,
+            generate_html=args.html or args.web_pack,
         )
     )
 

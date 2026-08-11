@@ -22,6 +22,9 @@ class OutputFormat(StrEnum):
     XLSX = "xlsx"
     PNG = "png"
     JPG = "jpg"
+    WEBP = "webp"
+    TIFF = "tiff"
+    ICO = "ico"
     MARKDOWN = "markdown"
     TEXT = "text"
 
@@ -43,6 +46,10 @@ class DocumentInput:
             "png": DocumentType.IMAGE,
             "jpg": DocumentType.IMAGE,
             "jpeg": DocumentType.IMAGE,
+            "webp": DocumentType.IMAGE,
+            "tiff": DocumentType.IMAGE,
+            "tif": DocumentType.IMAGE,
+            "ico": DocumentType.IMAGE,
             "xlsx": DocumentType.XLSX,
             "md": DocumentType.MARKDOWN,
             "txt": DocumentType.TEXT,
@@ -71,6 +78,32 @@ class PageRange:
 
     def to_zero_based(self) -> list[int]:
         return [page - 1 for page in self.expand()]
+
+
+@dataclass(slots=True, frozen=True)
+class CompressPdfOptions:
+    source: DocumentInput
+    output_path: Path
+    mode: str = "smart"  # "smart" (stream optimizer) or "rasterize"
+    quality: int = 60    # 10 - 100
+    dpi: int = 150       # 72 - 600 (used in rasterize mode)
+
+    def __post_init__(self) -> None:
+        if self.mode not in {"smart", "rasterize"}:
+            raise ValidationError("Compress mode must be 'smart' or 'rasterize'")
+        if not 1 <= self.quality <= 100:
+            raise ValidationError("Compress quality must be between 1 and 100")
+        if not 72 <= self.dpi <= 600:
+            raise ValidationError("Compress dpi must be between 72 and 600")
+
+
+@dataclass(slots=True, frozen=True)
+class FaviconOptions:
+    source: DocumentInput
+    output_dir: Path
+    sizes: list[int] | None = None
+    web_pack: bool = False
+    generate_html: bool = False
 
 
 @dataclass(slots=True)

@@ -1,10 +1,20 @@
 from .exceptions import DocumentToolsError, ProcessingError, UnsupportedFormatError, ValidationError
-from .models import DocumentInput, DocumentType, OperationResult, OutputFormat, PageRange
+from .models import (
+    CompressPdfOptions,
+    DocumentInput,
+    DocumentType,
+    FaviconOptions,
+    OperationResult,
+    OutputFormat,
+    PageRange,
+)
 
 __all__ = [
+    "CompressPdfOptions",
     "DocumentInput",
     "DocumentToolsError",
     "DocumentType",
+    "FaviconOptions",
     "OperationResult",
     "OutputFormat",
     "PageRange",

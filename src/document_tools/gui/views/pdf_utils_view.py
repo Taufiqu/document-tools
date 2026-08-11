@@ -152,8 +152,39 @@ class PdfUtilsView(ctk.CTkFrame):
 
         elif op == "compress":
             ctk.CTkLabel(
-                self._dynamic_frame, text="No configuration needed. This will optimize images and compress content streams.", font=T.FONT_SM, text_color=T.TEXT_SECONDARY
-            ).grid(row=0, column=0, columnspan=2, sticky="w", padx=T.PAD_MD, pady=T.PAD_MD)
+                self._dynamic_frame, text="Compression Mode", font=T.FONT_SM, text_color=T.TEXT_SECONDARY
+            ).grid(row=0, column=0, sticky="w", padx=(T.PAD_MD, 0), pady=(T.PAD_MD, T.PAD_XS))
+
+            self._compress_mode_var = tk.StringVar(value="Smart Vektor")
+            compress_mode_menu = ctk.CTkOptionMenu(
+                self._dynamic_frame,
+                values=["Smart Vektor", "Full Rasterize"],
+                variable=self._compress_mode_var,
+                font=T.FONT_SM,
+            )
+            compress_mode_menu.grid(row=0, column=1, sticky="w", padx=(T.PAD_MD, T.PAD_MD), pady=(T.PAD_MD, T.PAD_XS))
+
+            ctk.CTkLabel(
+                self._dynamic_frame, text="Image Quality", font=T.FONT_SM, text_color=T.TEXT_SECONDARY
+            ).grid(row=1, column=0, sticky="w", padx=(T.PAD_MD, 0), pady=(T.PAD_XS, T.PAD_MD))
+
+            self._compress_quality_var = tk.IntVar(value=60)
+            compress_quality_frame = ctk.CTkFrame(self._dynamic_frame, fg_color="transparent")
+            self._compress_quality_slider = ctk.CTkSlider(
+                compress_quality_frame,
+                from_=10,
+                to=100,
+                number_of_steps=90,
+                variable=self._compress_quality_var,
+                width=180,
+            )
+            self._compress_quality_slider.pack(side="left", padx=(0, T.PAD_SM))
+
+            self._quality_label = ctk.CTkLabel(
+                compress_quality_frame, textvariable=self._compress_quality_var, font=T.FONT_SM, width=30
+            )
+            self._quality_label.pack(side="left")
+            compress_quality_frame.grid(row=1, column=1, sticky="w", padx=(T.PAD_MD, T.PAD_MD), pady=(T.PAD_XS, T.PAD_MD))
 
         elif op in {"protect", "unlock"}:
             action_word = "New" if op == "protect" else "Decrypting"
@@ -263,6 +294,18 @@ class PdfUtilsView(ctk.CTkFrame):
                 self._result.show(f"Reorder list error: {exc}", "error")
                 return
 
+        elif op == "compress":
+            raw_mode = self._compress_mode_var.get()
+            mode = "smart" if "smart" in raw_mode.lower() else "rasterize"
+            quality = int(self._compress_quality_var.get())
+            compress_opt = CompressPdfOptions(
+                source=source_input,
+                output_path=output_path,
+                mode=mode,
+                quality=quality,
+            )
+            args = (compress_opt,)
+
         elif op in {"protect", "unlock"}:
             crypto_password = self._crypto_password_entry.get().strip()
             if not crypto_password:
@@ -301,7 +344,7 @@ class PdfUtilsView(ctk.CTkFrame):
             elif op == "reorder":
                 res = self._pdf_service.reorder_pages(source, output, args[0])
             elif op == "compress":
-                res = self._pdf_service.compress_pdf(source, output)
+                res = self._pdf_service.compress_pdf(source, output, args[0])
             elif op == "protect":
                 res = self._pdf_service.protect_pdf(source, output, args[0])
             elif op == "unlock":

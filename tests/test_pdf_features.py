@@ -237,6 +237,78 @@ def test_compress_pdf_reduces_size_for_uncompressed_input(tmp_path: Path) -> Non
     assert compressed_pdf.stat().st_size <= source_pdf.stat().st_size
 
 
+def test_compress_pdf_with_smart_options(tmp_path: Path) -> None:
+    from document_tools.models import CompressPdfOptions
+
+    source_pdf = tmp_path / "source.pdf"
+    compressed_pdf = tmp_path / "compressed_smart.pdf"
+    _create_pdf(source_pdf, page_count=2)
+
+    service = PdfUtilityService()
+    result = service.compress_pdf(
+        source=DocumentInput.from_path(source_pdf),
+        output_path=compressed_pdf,
+        options=CompressPdfOptions(
+            source=DocumentInput.from_path(source_pdf),
+            output_path=compressed_pdf,
+            mode="smart",
+            quality=50,
+        ),
+    )
+
+    assert result.success is True
+    assert compressed_pdf.exists()
+    assert result.metadata["page_count"] == 2
+    assert result.metadata["quality"] == 50
+
+
+def test_compress_pdf_with_rasterize_mode(tmp_path: Path) -> None:
+    from document_tools.models import CompressPdfOptions
+
+    source_pdf = tmp_path / "source.pdf"
+    compressed_pdf = tmp_path / "compressed_raster.pdf"
+    _create_pdf(source_pdf, page_count=1)
+
+    service = PdfUtilityService()
+    result = service.compress_pdf(
+        source=DocumentInput.from_path(source_pdf),
+        output_path=compressed_pdf,
+        options=CompressPdfOptions(
+            source=DocumentInput.from_path(source_pdf),
+            output_path=compressed_pdf,
+            mode="rasterize",
+            quality=60,
+            dpi=100,
+        ),
+    )
+
+    assert result.success is True
+    assert compressed_pdf.exists()
+    assert result.metadata["page_count"] == 1
+    assert result.metadata["dpi"] == 100
+
+
+def test_compress_pdf_options_reject_invalid_bounds(tmp_path: Path) -> None:
+    from document_tools.models import CompressPdfOptions
+
+    source_pdf = tmp_path / "source.pdf"
+    compressed_pdf = tmp_path / "compressed.pdf"
+
+    with pytest.raises(ValidationError):
+        CompressPdfOptions(
+            source=DocumentInput.from_path(source_pdf),
+            output_path=compressed_pdf,
+            mode="invalid_mode",
+        )
+
+    with pytest.raises(ValidationError):
+        CompressPdfOptions(
+            source=DocumentInput.from_path(source_pdf),
+            output_path=compressed_pdf,
+            quality=150,
+        )
+
+
 def test_protect_pdf_encrypts_output(tmp_path: Path) -> None:
     source_pdf = tmp_path / "source.pdf"
     output_pdf = tmp_path / "protected.pdf"

@@ -71,9 +71,22 @@ document-tools rotate-pages source.pdf --output rotated.pdf --pages 1,3 --angle 
 document-tools reorder-pages source.pdf --output reordered.pdf --order 3,1,2
 ```
 
-#### Compress PDF
+#### Compress PDF (Smart Vector & Rasterize)
 ```sh
-document-tools compress-pdf source.pdf --output compressed.pdf
+# Smart mode (mengompresi stream gambar internal tanpa merusak ketajaman teks/vektor)
+document-tools compress-pdf source.pdf --output compressed.pdf --mode smart --quality 60
+
+# Rasterize mode (mengonversi tiap halaman ke gambar terkompresi, cocok untuk PDF hasil scan)
+document-tools compress-pdf source.pdf --output compressed.pdf --mode rasterize --quality 60 --dpi 150
+```
+
+#### Generate Favicon & Web Icon Pack
+```sh
+# Buat file favicon.ico multi-resolusi
+document-tools generate-favicon logo.png -o favicons/
+
+# Buat complete web favicon pack (apple-touch, android-chrome, ico, png, & tag HTML)
+document-tools generate-favicon logo.png -o favicons/ --web-pack
 ```
 
 #### Protect PDF
@@ -100,21 +113,23 @@ document-tools watermark-pdf source.pdf --output watermarked.pdf --text CONFIDEN
 - delete pages
 - rotate pages
 - reorder pages
-- compress dasar
-- protect
-- unlock
+- compress cerdas (Smart stream optimizer & Full rasterize)
+- protect (enkripsi password)
+- unlock (dekripsi password)
 - watermark teks
 
 ### DOCX
 - merge
 - split by section break
 
+### Gambar & Favicon
+- Favicon .ico generator (multi-size: 16, 32, 48, 64, 128, 256)
+- Complete Web Favicon Pack (Apple Touch Icon, Android Chrome, favicon.ico, PNG, & HTML tags)
+- PDF to Images (PNG, JPG, WEBP, TIFF)
+- Images to PDF (JPG, PNG, WEBP, TIFF, ICO)
+
 ### Mixed
 - PDF + DOCX -> PDF (menggunakan LibreOffice headless)
-
-## Catatan
-
-Beberapa fitur roadmap lain seperti Word split per halaman, mixed merge ke DOCX, dan compress PDF tingkat lanjut masih belum diimplementasikan.
 
 ---
 

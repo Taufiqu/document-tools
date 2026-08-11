@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from document_tools.exceptions import ProcessingError, ValidationError
-from document_tools.models import DocumentInput, DocumentType, OperationResult
+from document_tools.models import CompressPdfOptions, DocumentInput, DocumentType, OperationResult
 
 
 @dataclass(slots=True, frozen=True)
@@ -138,9 +138,149 @@ class PdfUtilityService:
             },
         )
 
-    def compress_pdf(self, source: DocumentInput, output_path: Path) -> OperationResult:
+    def compress_pdf(
+        self,
+        source: DocumentInput,
+        output_path: Path,
+        options: CompressPdfOptions | None = None,
+    ) -> OperationResult:
         self._validate_pdf_source(source)
+        self._validate_output_path(output_path)
 
+        mode = options.mode if options else "smart"
+        quality = options.quality if options else 60
+        dpi = options.dpi if options else 150
+
+        # Try using PyMuPDF + Pillow for advanced smart / rasterize compression
+        fitz = None
+        pil_image = None
+        try:
+            fitz = importlib.import_module("fitz")
+            pil_image = importlib.import_module("PIL.Image")
+        except ImportError:
+            pass
+
+        if fitz is not None and pil_image is not None:
+            return self._compress_pdf_pymupdf(source, output_path, mode, quality, dpi, fitz, pil_image)
+
+        # Fallback to pypdf stream deflation
+        return self._compress_pdf_pypdf(source, output_path)
+
+    def _compress_pdf_pymupdf(
+        self,
+        source: DocumentInput,
+        output_path: Path,
+        mode: str,
+        quality: int,
+        dpi: int,
+        fitz: Any,
+        pil_image: Any,
+    ) -> OperationResult:
+        try:
+            doc = fitz.open(str(source.path))
+            total_pages = len(doc)
+            if total_pages == 0:
+                doc.close()
+                raise ValidationError("PDF file has no pages")
+
+            optimized_images = 0
+
+            if mode == "smart":
+                processed_xrefs = set()
+                for page_idx in range(total_pages):
+                    page = doc[page_idx]
+                    image_list = page.get_images(full=True)
+
+                    for img_info in image_list:
+                        xref = img_info[0]
+                        if xref in processed_xrefs:
+                            continue
+                        processed_xrefs.add(xref)
+
+                        try:
+                            base_image = doc.extract_image(xref)
+                            image_bytes = base_image["image"]
+                            img = pil_image.open(BytesIO(image_bytes))
+
+                            if img.mode in ("RGBA", "P", "CMYK"):
+                                img = img.convert("RGB")
+
+                            buf = BytesIO()
+                            img.save(buf, format="JPEG", quality=quality, optimize=True)
+                            compressed_bytes = buf.getvalue()
+
+                            if len(compressed_bytes) < len(image_bytes):
+                                doc.update_stream(xref, compressed_bytes)
+                                optimized_images += 1
+                        except Exception:
+                            # Skip uncompressable / problematic individual images
+                            pass
+
+                doc.save(
+                    str(output_path),
+                    garbage=4,
+                    deflate=True,
+                    deflate_images=True,
+                    deflate_fonts=True,
+                )
+                doc.close()
+
+            else:  # rasterize mode
+                output_doc = fitz.open()
+                scale = dpi / 72.0
+                mat = fitz.Matrix(scale, scale)
+
+                for page_idx in range(total_pages):
+                    page = doc[page_idx]
+                    pix = page.get_pixmap(matrix=mat)
+                    img_data = pix.tobytes("ppm")
+                    img = pil_image.open(BytesIO(img_data))
+                    if img.mode != "RGB":
+                        img = img.convert("RGB")
+
+                    buf = BytesIO()
+                    img.save(buf, format="JPEG", quality=quality, optimize=True)
+                    compressed_bytes = buf.getvalue()
+
+                    new_page = output_doc.new_page(width=page.rect.width, height=page.rect.height)
+                    new_page.insert_image(page.rect, stream=compressed_bytes)
+                    optimized_images += 1
+
+                output_doc.save(str(output_path), garbage=4, deflate=True)
+                output_doc.close()
+                doc.close()
+
+        except ValidationError:
+            raise
+        except Exception as exc:
+            raise ProcessingError(f"Failed to compress PDF via PyMuPDF: {source.path}") from exc
+
+        input_size = source.path.stat().st_size
+        output_size = output_path.stat().st_size
+        saved_bytes = max(input_size - output_size, 0)
+        compression_ratio = round((saved_bytes / input_size), 4) if input_size else 0.0
+        reduction_percentage = round((saved_bytes / input_size) * 100, 2) if input_size else 0.0
+
+        return OperationResult(
+            success=True,
+            output_files=[output_path],
+            message=f"Compressed {source.path.name} ({reduction_percentage}% reduction)",
+            metadata={
+                "page_count": total_pages,
+                "mode": mode,
+                "quality": quality,
+                "dpi": dpi,
+                "engine": "pymupdf",
+                "optimized_images": optimized_images,
+                "input_size_bytes": input_size,
+                "output_size_bytes": output_size,
+                "saved_bytes": saved_bytes,
+                "compression_ratio": compression_ratio,
+                "reduction_percentage": reduction_percentage,
+            },
+        )
+
+    def _compress_pdf_pypdf(self, source: DocumentInput, output_path: Path) -> OperationResult:
         pypdf = self._load_pypdf()
 
         try:
@@ -166,17 +306,21 @@ class PdfUtilityService:
         output_size = output_path.stat().st_size
         saved_bytes = max(input_size - output_size, 0)
         compression_ratio = (saved_bytes / input_size) if input_size else 0.0
+        reduction_percentage = round((saved_bytes / input_size) * 100, 2) if input_size else 0.0
 
         return OperationResult(
             success=True,
             output_files=[output_path],
-            message=f"Compressed {source.path.name}",
+            message=f"Compressed {source.path.name} ({reduction_percentage}% reduction)",
             metadata={
                 "page_count": len(reader.pages),
+                "engine": "pypdf",
+                "mode": "basic",
                 "input_size_bytes": input_size,
                 "output_size_bytes": output_size,
                 "saved_bytes": saved_bytes,
                 "compression_ratio": round(compression_ratio, 4),
+                "reduction_percentage": reduction_percentage,
             },
         )
 
@@ -288,6 +432,11 @@ class PdfUtilityService:
             raise ValidationError(f"Source file does not exist: {source.path}")
         if not source.path.is_file():
             raise ValidationError(f"Source path is not a file: {source.path}")
+
+    def _validate_output_path(self, output_path: Path) -> None:
+        parent = output_path.parent
+        if str(parent) not in {"", "."} and not parent.exists():
+            raise ValidationError(f"Output directory does not exist: {parent}")
 
     def _normalize_page_numbers(self, page_numbers: list[int], total_pages: int) -> set[int]:
         normalized = set(page_numbers)

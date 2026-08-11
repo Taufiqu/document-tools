@@ -7,7 +7,13 @@ import tkinter as tk
 from tkinter import filedialog
 import customtkinter as ctk
 
-from document_tools.features import ConvertOptions, ConvertService, ImagesToPdfOptions, PdfToImagesOptions
+from document_tools.features import (
+    ConvertOptions,
+    ConvertService,
+    FaviconOptions,
+    ImagesToPdfOptions,
+    PdfToImagesOptions,
+)
 from document_tools.models import DocumentInput, OutputFormat
 from document_tools.exceptions import DocumentToolsError
 from document_tools.gui import theme as T
@@ -16,7 +22,7 @@ from document_tools.gui.widgets import FilePicker, ResultCard, ProgressWidget
 
 class ConvertView(ctk.CTkFrame):
     """
-    ConvertView manages 8 different conversion paths.
+    ConvertView manages format conversions and favicon generation.
     It dynamically adjusts form inputs based on the selected conversion route.
     """
 
@@ -48,6 +54,7 @@ class ConvertView(ctk.CTkFrame):
             "Excel (XLSX) to PDF",
             "PDF to Images",
             "Images to PDF",
+            "Image to Favicon (.ico / Web Pack)",
         ]
         self._route_selector = ctk.CTkOptionMenu(
             content,
@@ -165,7 +172,7 @@ class ConvertView(ctk.CTkFrame):
             ).grid(row=0, column=0, sticky="w", padx=(T.PAD_MD, 0), pady=(T.PAD_MD, T.PAD_XS))
             self._img_format_var = tk.StringVar(value="png")
             img_format_selector = ctk.CTkSegmentedButton(
-                settings_frame, values=["png", "jpg"], variable=self._img_format_var, font=T.FONT_SM
+                settings_frame, values=["png", "jpg", "webp", "tiff"], variable=self._img_format_var, font=T.FONT_SM
             )
             img_format_selector.grid(row=0, column=1, sticky="w", padx=(T.PAD_MD, T.PAD_MD), pady=(T.PAD_MD, T.PAD_XS))
 
@@ -194,6 +201,45 @@ class ConvertView(ctk.CTkFrame):
                 label="Save Images To Directory",
                 mode="dir",
                 placeholder="Choose folder where page images will be saved",
+            )
+            self._output_picker.pack(fill="x", pady=T.PAD_MD)
+
+        elif route == "Image to Favicon (.ico / Web Pack)":
+            self._source_picker = FilePicker(
+                self._dynamic_frame,
+                label="Source Image File (PNG / JPG / WEBP)",
+                mode="file",
+                filetypes=[("Image files", "*.png;*.jpg;*.jpeg;*.webp"), ("All files", "*.*")],
+                placeholder="Select an image file (e.g. logo.png)",
+            )
+            self._source_picker.pack(fill="x", pady=(0, T.PAD_MD))
+
+            settings_frame = ctk.CTkFrame(self._dynamic_frame, fg_color=T.BG_CARD)
+            settings_frame.pack(fill="x", pady=(0, T.PAD_MD))
+
+            self._webpack_var = tk.BooleanVar(value=True)
+            webpack_chk = ctk.CTkCheckBox(
+                settings_frame,
+                text="Generate Web Favicon Pack (Apple Touch, Android Chrome, ICO & PNGs)",
+                variable=self._webpack_var,
+                font=T.FONT_SM,
+            )
+            webpack_chk.pack(anchor="w", padx=T.PAD_MD, pady=(T.PAD_SM, T.PAD_XS))
+
+            self._html_var = tk.BooleanVar(value=True)
+            html_chk = ctk.CTkCheckBox(
+                settings_frame,
+                text="Generate HTML tag snippet file (favicon_html.txt)",
+                variable=self._html_var,
+                font=T.FONT_SM,
+            )
+            html_chk.pack(anchor="w", padx=T.PAD_MD, pady=(T.PAD_XS, T.PAD_SM))
+
+            self._output_picker = FilePicker(
+                self._dynamic_frame,
+                label="Save Favicons To Directory",
+                mode="dir",
+                placeholder="Choose folder where favicons will be saved",
             )
             self._output_picker.pack(fill="x", pady=T.PAD_MD)
 
@@ -347,6 +393,33 @@ class ConvertView(ctk.CTkFrame):
                 daemon=True,
             ).start()
 
+        elif route == "Image to Favicon (.ico / Web Pack)":
+            source_str = self._source_picker.get()
+            if not source_str:
+                self._result.show("Please select a source image file.", "error")
+                return
+            source_path = Path(source_str)
+            web_pack = self._webpack_var.get()
+            generate_html = self._html_var.get()
+
+            options = FaviconOptions(
+                source=DocumentInput.from_path(source_path),
+                output_dir=output_path,
+                web_pack=web_pack,
+                generate_html=generate_html,
+            )
+
+            self._run_btn.configure(state="disabled")
+            self._progress.show()
+            self._progress.set_status("Generating favicon and web icon bundle...")
+            self._progress.set_progress(None)
+
+            threading.Thread(
+                target=self._run_favicon_thread,
+                args=(options,),
+                daemon=True,
+            ).start()
+
         else:
             # Standard conversion
             source_str = self._source_picker.get()
@@ -408,6 +481,15 @@ class ConvertView(ctk.CTkFrame):
     def _run_pdf_to_images_thread(self, options: PdfToImagesOptions) -> None:
         try:
             res = self._convert_service.pdf_to_images(options)
+            self.after(0, self._on_success, res.message)
+        except DocumentToolsError as exc:
+            self.after(0, self._on_error, str(exc))
+        except Exception as exc:
+            self.after(0, self._on_error, f"An unexpected error occurred: {exc}")
+
+    def _run_favicon_thread(self, options: FaviconOptions) -> None:
+        try:
+            res = self._convert_service.generate_favicon(options)
             self.after(0, self._on_success, res.message)
         except DocumentToolsError as exc:
             self.after(0, self._on_error, str(exc))

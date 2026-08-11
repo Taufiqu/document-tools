@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from document_tools.exceptions import ProcessingError, UnsupportedFormatError, ValidationError
-from document_tools.models import DocumentInput, DocumentType, OperationResult, OutputFormat
+from document_tools.models import DocumentInput, DocumentType, FaviconOptions, OperationResult, OutputFormat
 
 
 @dataclass(slots=True, frozen=True)
@@ -28,8 +28,8 @@ class PdfToImagesOptions:
     dpi: int = 150
 
     def __post_init__(self) -> None:
-        if self.image_format.lower() not in {"png", "jpg", "jpeg"}:
-            raise ValidationError("image_format must be one of: png, jpg, jpeg")
+        if self.image_format.lower() not in {"png", "jpg", "jpeg", "webp", "tiff", "tif"}:
+            raise ValidationError("image_format must be one of: png, jpg, jpeg, webp, tiff, tif")
         if self.dpi < 72 or self.dpi > 600:
             raise ValidationError("dpi must be between 72 and 600")
 
@@ -47,8 +47,9 @@ class ConvertService:
     Routes:
       PDF  → DOCX   (pdf2docx)
       DOCX → PDF    (LibreOffice headless)
-      PDF  → Image  (pymupdf, PNG/JPG per page)
+      PDF  → Image  (pymupdf/Pillow, PNG/JPG/WEBP/TIFF per page)
       Image→ PDF    (Pillow)
+      Image→ Favicon(Pillow, ICO & Web Favicon Pack)
       PDF  → MD     (pymupdf, best-effort text extraction)
       DOCX → MD     (mammoth)
       PDF  → XLSX   (pymupdf table extraction, best-effort)
@@ -90,20 +91,31 @@ class ConvertService:
         )
 
     def pdf_to_images(self, options: PdfToImagesOptions) -> OperationResult:
-        """Convert each PDF page to an image file (PNG or JPG)."""
+        """Convert each PDF page to an image file (PNG, JPG, WEBP, or TIFF)."""
         self._validate_source(options.source)
         if not options.output_dir.exists():
-            raise ValidationError(f"Output directory does not exist: {options.output_dir}")
+            options.output_dir.mkdir(parents=True, exist_ok=True)
         if options.source.document_type != DocumentType.PDF:
             raise ValidationError("pdf_to_images only accepts PDF sources")
 
         fitz = self._load_pymupdf()
+        pil_image = self._load_pillow()
         stem = options.source.path.stem
         output_files: list[Path] = []
-        image_fmt = options.image_format.lower()
-        # pymupdf uses "jpeg" internally
-        fitz_fmt = "jpeg" if image_fmt in {"jpg", "jpeg"} else "png"
-        file_ext = "jpg" if fitz_fmt == "jpeg" else "png"
+        fmt = options.image_format.lower()
+
+        if fmt in {"jpg", "jpeg"}:
+            fitz_fmt = "jpeg"
+            file_ext = "jpg"
+        elif fmt in {"tiff", "tif"}:
+            fitz_fmt = "tiff"
+            file_ext = "tiff"
+        elif fmt == "webp":
+            fitz_fmt = "webp"
+            file_ext = "webp"
+        else:
+            fitz_fmt = "png"
+            file_ext = "png"
 
         try:
             doc = fitz.open(str(options.source.path))
@@ -113,7 +125,15 @@ class ConvertService:
             for page_index, page in enumerate(doc, start=1):
                 pixmap = page.get_pixmap(matrix=matrix)
                 output_path = options.output_dir / f"{stem}_page_{page_index:04d}.{file_ext}"
-                pixmap.save(str(output_path), output=fitz_fmt)
+
+                if fitz_fmt == "webp":
+                    # Convert via Pillow for clean WebP compression
+                    png_bytes = pixmap.tobytes("png")
+                    with pil_image.open(BytesIO(png_bytes)) as pil_img:
+                        pil_img.save(str(output_path), format="WEBP", quality=90)
+                else:
+                    pixmap.save(str(output_path), output=fitz_fmt)
+
                 output_files.append(output_path)
 
             doc.close()
@@ -177,6 +197,103 @@ class ConvertService:
             output_files=[options.output_path],
             message=f"Combined {len(options.sources)} image(s) into {options.output_path.name}",
             metadata={"image_count": len(options.sources)},
+        )
+
+    def generate_favicon(self, options: FaviconOptions) -> OperationResult:
+        """
+        Generate multi-size favicon (.ico) and optional complete Web Favicon Pack.
+        """
+        self._validate_source(options.source)
+        if options.source.document_type != DocumentType.IMAGE:
+            raise ValidationError("generate_favicon only accepts IMAGE sources")
+
+        if not options.output_dir.exists():
+            options.output_dir.mkdir(parents=True, exist_ok=True)
+
+        pil_image = self._load_pillow()
+        created_files: list[Path] = []
+
+        try:
+            with pil_image.open(options.source.path) as raw_img:
+                img = raw_img.convert("RGBA") if raw_img.mode != "RGBA" else raw_img.copy()
+
+            if options.web_pack:
+                web_formats = {
+                    "favicon.ico": [(16, 16), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)],
+                    "favicon-32x32.png": (32, 32),
+                    "favicon-48x48.png": (48, 48),
+                    "favicon-64x64.png": (64, 64),
+                    "apple-touch-icon.png": (180, 180),
+                    "android-chrome-192x192.png": (192, 192),
+                    "android-chrome-512x512.png": (512, 512),
+                }
+
+                for filename, spec in web_formats.items():
+                    out_file = options.output_dir / filename
+                    if filename.endswith(".ico"):
+                        ico_sizes: list[Any] = []
+                        for w, h in spec:
+                            resized = img.resize((w, h), pil_image.Resampling.LANCZOS)
+                            ico_sizes.append(resized)
+                        ico_sizes[0].save(out_file, format="ICO", sizes=spec)
+                    else:
+                        w, h = spec
+                        resized = img.resize((w, h), pil_image.Resampling.LANCZOS)
+                        resized.save(out_file, format="PNG", optimize=True)
+                    created_files.append(out_file)
+
+                # Generate HTML tag snippet
+                html_file = options.output_dir / "favicon_html.txt"
+                html_content = (
+                    "<!-- Favicon HTML Tags - Paste inside <head> -->\n"
+                    '<link rel="icon" type="image/x-icon" href="favicon.ico">\n'
+                    '<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">\n'
+                    '<link rel="icon" type="image/png" sizes="48x48" href="favicon-48x48.png">\n'
+                    '<link rel="icon" type="image/png" sizes="64x64" href="favicon-64x64.png">\n'
+                    '<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">\n'
+                    '<link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">\n'
+                    '<link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">\n'
+                    '<meta name="theme-color" content="#ffffff">\n'
+                )
+                html_file.write_text(html_content, encoding="utf-8")
+                created_files.append(html_file)
+
+            else:
+                target_sizes = options.sizes or [16, 32, 48, 64, 128, 256]
+                ico_sizes = []
+                size_tuples = []
+                for s in target_sizes:
+                    resized = img.resize((s, s), pil_image.Resampling.LANCZOS)
+                    ico_sizes.append(resized)
+                    size_tuples.append((s, s))
+
+                ico_file = options.output_dir / f"{options.source.path.stem}.ico"
+                ico_sizes[0].save(ico_file, format="ICO", sizes=size_tuples)
+                created_files.append(ico_file)
+
+                if options.generate_html:
+                    html_file = options.output_dir / "favicon_html.txt"
+                    html_content = (
+                        "<!-- Favicon HTML Tag -->\n"
+                        f'<link rel="icon" type="image/x-icon" href="{ico_file.name}">\n'
+                    )
+                    html_file.write_text(html_content, encoding="utf-8")
+                    created_files.append(html_file)
+
+        except ValidationError:
+            raise
+        except Exception as exc:
+            raise ProcessingError(f"Failed to generate favicon from {options.source.path}") from exc
+
+        return OperationResult(
+            success=True,
+            output_files=created_files,
+            message=f"Generated {len(created_files)} favicon file(s) in {options.output_dir.name}",
+            metadata={
+                "file_count": len(created_files),
+                "web_pack": options.web_pack,
+                "output_dir": str(options.output_dir),
+            },
         )
 
     # ------------------------------------------------------------------ #

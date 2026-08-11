@@ -225,6 +225,10 @@ def test_cli_compress_pdf_command_creates_output(tmp_path: Path, capsys) -> None
         str(source_pdf),
         "--output",
         str(output_pdf),
+        "--mode",
+        "smart",
+        "--quality",
+        "50",
     ])
 
     captured = capsys.readouterr()
@@ -234,3 +238,29 @@ def test_cli_compress_pdf_command_creates_output(tmp_path: Path, capsys) -> None
     assert output_pdf.exists()
     assert payload["success"] is True
     assert "output_size_bytes" in payload["metadata"]
+
+
+def test_cli_generate_favicon_command(tmp_path: Path, capsys) -> None:
+    from PIL import Image
+
+    logo_path = tmp_path / "logo.png"
+    img = Image.new("RGBA", (100, 100), (255, 100, 50, 255))
+    img.save(str(logo_path))
+
+    out_dir = tmp_path / "favicon_cli_out"
+
+    exit_code = main([
+        "generate-favicon",
+        str(logo_path),
+        "-o",
+        str(out_dir),
+        "--web-pack",
+    ])
+
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+
+    assert exit_code == 0
+    assert payload["success"] is True
+    assert (out_dir / "favicon.ico").exists()
+    assert (out_dir / "favicon_html.txt").exists()

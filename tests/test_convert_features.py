@@ -365,6 +365,98 @@ def test_pdf_to_docx_creates_docx(tmp_path: Path) -> None:
 
 
 # ------------------------------------------------------------------ #
+# Favicon Generator                                                    #
+# ------------------------------------------------------------------ #
+
+
+def test_generate_favicon_creates_single_ico(tmp_path: Path) -> None:
+    from document_tools.models import FaviconOptions
+
+    source = tmp_path / "logo.png"
+    _create_simple_png(source)
+
+    service = ConvertService()
+    result = service.generate_favicon(FaviconOptions(
+        source=DocumentInput.from_path(source),
+        output_dir=tmp_path / "favicon_out",
+        sizes=[16, 32, 64],
+        web_pack=False,
+    ))
+
+    assert result.success is True
+    ico_file = tmp_path / "favicon_out" / "logo.ico"
+    assert ico_file.exists()
+    assert ico_file.stat().st_size > 0
+
+
+def test_generate_favicon_creates_complete_web_pack(tmp_path: Path) -> None:
+    from document_tools.models import FaviconOptions
+
+    source = tmp_path / "logo.png"
+    _create_simple_png(source)
+
+    service = ConvertService()
+    result = service.generate_favicon(FaviconOptions(
+        source=DocumentInput.from_path(source),
+        output_dir=tmp_path / "web_favicons",
+        web_pack=True,
+        generate_html=True,
+    ))
+
+    assert result.success is True
+    out_dir = tmp_path / "web_favicons"
+    assert (out_dir / "favicon.ico").exists()
+    assert (out_dir / "favicon-32x32.png").exists()
+    assert (out_dir / "favicon-48x48.png").exists()
+    assert (out_dir / "apple-touch-icon.png").exists()
+    assert (out_dir / "android-chrome-192x192.png").exists()
+    assert (out_dir / "android-chrome-512x512.png").exists()
+    assert (out_dir / "favicon_html.txt").exists()
+
+    html_content = (out_dir / "favicon_html.txt").read_text(encoding="utf-8")
+    assert '<link rel="icon"' in html_content
+
+
+def test_generate_favicon_rejects_non_image(tmp_path: Path) -> None:
+    from document_tools.models import FaviconOptions
+
+    source = tmp_path / "doc.pdf"
+    _create_blank_pdf(source)
+
+    service = ConvertService()
+    with pytest.raises(ValidationError):
+        service.generate_favicon(FaviconOptions(
+            source=DocumentInput.from_path(source),
+            output_dir=tmp_path / "out",
+        ))
+
+
+def test_pdf_to_images_webp_and_tiff(tmp_path: Path) -> None:
+    source = tmp_path / "source.pdf"
+    _create_blank_pdf(source, page_count=2)
+
+    service = ConvertService()
+
+    # WebP test
+    webp_result = service.pdf_to_images(PdfToImagesOptions(
+        source=DocumentInput.from_path(source),
+        output_dir=tmp_path / "webp_out",
+        image_format="webp",
+    ))
+    assert webp_result.success is True
+    assert (tmp_path / "webp_out" / "source_page_0001.webp").exists()
+
+    # TIFF test
+    tiff_result = service.pdf_to_images(PdfToImagesOptions(
+        source=DocumentInput.from_path(source),
+        output_dir=tmp_path / "tiff_out",
+        image_format="tiff",
+    ))
+    assert tiff_result.success is True
+    assert (tmp_path / "tiff_out" / "source_page_0001.tiff").exists()
+
+
+# ------------------------------------------------------------------ #
 # Unsupported route                                                     #
 # ------------------------------------------------------------------ #
 

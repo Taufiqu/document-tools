@@ -3,7 +3,7 @@ import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
 import { fileToUint8Array, downloadUint8Array, formatBytes } from '@/lib/utils';
 import { mergePdfs, getPdfPageCount, TargetPaperSize } from '@/lib/pdf-engine';
-import { Layers, ArrowUp, ArrowDown, Trash2, Loader2, Sparkles, Sliders } from 'lucide-react';
+import { Layers, ArrowUp, ArrowDown, Trash2, Loader2, Sliders } from 'lucide-react';
 
 interface MergeFileItem {
   id: string;
@@ -79,7 +79,7 @@ export function MergeView() {
 
   const handleMerge = async () => {
     if (items.length < 2) {
-      alert('Pilih setidaknya 2 file PDF untuk digabungkan.');
+      alert('Select at least 2 PDF files to merge.');
       return;
     }
 
@@ -89,11 +89,11 @@ export function MergeView() {
         items.map((i) => ({ data: i.data, name: i.name })),
         { paperSize, orientation, margin }
       );
-      const filename = `merged_document_${paperSize.toUpperCase()}_${Date.now()}.pdf`;
+      const filename = `merged_${paperSize}_${Date.now()}.pdf`;
       setMergedResult({ bytes: mergedBytes, filename });
       setShowResultModal(true);
     } catch (err) {
-      alert(`Gagal menggabungkan PDF: ${err}`);
+      alert(`Failed to merge PDF: ${err}`);
     } finally {
       setIsMerging(false);
     }
@@ -103,16 +103,16 @@ export function MergeView() {
   const totalInputSize = items.reduce((acc, i) => acc + i.size, 0);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-indigo-400 font-semibold text-xs uppercase tracking-wider mb-1">
-          <Layers className="w-4 h-4" />
-          <span>Core Document Tool</span>
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono mb-1">
+          <Layers className="w-3.5 h-3.5" />
+          <span>MODULE / PDF MERGER</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">PDF Merger</h1>
-        <p className="text-xs sm:text-sm text-slate-400">
-          Gabungkan beberapa file PDF secara aman 100% di browser tanpa batas ukuran atau upload server. Dilengkapi standarisasi skala otomatis.
+        <h1 className="text-xl sm:text-2xl font-semibold text-white">Merge PDF Documents</h1>
+        <p className="text-xs sm:text-sm text-zinc-400">
+          Combine multiple PDF files in RAM with optional uniform paper sizing.
         </p>
       </div>
 
@@ -120,143 +120,134 @@ export function MergeView() {
         onFilesSelected={handleFilesSelected}
         multiple={true}
         accept="application/pdf"
-        title="Tarik & Lepas File-File PDF ke Sini"
-        subtitle="Pilih beberapa file sekaligus untuk digabungkan menjadi 1 dokumen"
+        title="Select or drop PDF files to merge"
+        subtitle="Choose multiple files to concatenate into a single document"
       />
 
       {/* Selected Items Reorder List */}
       {items.length > 0 && (
-        <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white">Urutan File yang Digabungkan</h3>
-              <p className="text-xs text-slate-400">
-                {items.length} file • Total {totalPages} halaman ({formatBytes(totalInputSize)})
-              </p>
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <div>
+                <h3 className="text-xs font-medium text-white uppercase tracking-wider font-mono">
+                  Document Sequence ({items.length})
+                </h3>
+                <p className="text-xs text-zinc-400 font-mono">
+                  {totalPages} pages total • {formatBytes(totalInputSize)}
+                </p>
+              </div>
+
+              <button
+                onClick={handleClearAll}
+                className="text-xs text-zinc-400 hover:text-rose-400 transition flex items-center gap-1 cursor-pointer"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>Clear</span>
+              </button>
             </div>
 
-            <button
-              onClick={handleClearAll}
-              className="text-xs text-rose-400 hover:text-rose-300 transition flex items-center gap-1 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Hapus Semua</span>
-            </button>
-          </div>
+            <div className="space-y-1.5">
+              {items.map((item, index) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-2.5 rounded-lg bg-surface-100 border border-border text-xs"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-5 h-5 rounded bg-surface-50 text-zinc-300 font-mono flex items-center justify-center text-[10px]">
+                      {index + 1}
+                    </span>
+                    <div className="truncate">
+                      <p className="font-medium text-white truncate max-w-sm">{item.name}</p>
+                      <p className="text-[10px] font-mono text-zinc-400">
+                        {item.pageCount} pages • {formatBytes(item.size)}
+                      </p>
+                    </div>
+                  </div>
 
-          <div className="space-y-2">
-            {items.map((item, index) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-3 rounded-xl bg-surface-200 border border-slate-700/60 hover:border-indigo-500/40 transition text-xs"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="w-6 h-6 rounded-lg bg-indigo-600/20 text-indigo-400 font-bold flex items-center justify-center text-xs">
-                    {index + 1}
-                  </span>
-                  <div className="truncate">
-                    <p className="font-semibold text-white truncate max-w-sm sm:max-w-md">{item.name}</p>
-                    <p className="text-[11px] text-slate-400">
-                      {item.pageCount} halaman • {formatBytes(item.size)}
-                    </p>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      className="p-1 rounded bg-surface-50 text-zinc-400 hover:text-white disabled:opacity-20 transition cursor-pointer"
+                      title="Move up"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === items.length - 1}
+                      className="p-1 rounded bg-surface-50 text-zinc-400 hover:text-white disabled:opacity-20 transition cursor-pointer"
+                      title="Move down"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      onClick={() => handleRemove(item.id)}
+                      className="p-1 rounded text-zinc-400 hover:text-rose-400 hover:bg-surface-50 transition cursor-pointer"
+                      title="Remove file"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    onClick={() => handleMoveUp(index)}
-                    disabled={index === 0}
-                    className="p-1.5 rounded-lg bg-surface-100 hover:bg-slate-700 text-slate-300 disabled:opacity-30 transition cursor-pointer"
-                    title="Pindahkan ke atas"
-                  >
-                    <ArrowUp className="w-3.5 h-3.5" />
-                  </button>
-
-                  <button
-                    onClick={() => handleMoveDown(index)}
-                    disabled={index === items.length - 1}
-                    className="p-1.5 rounded-lg bg-surface-100 hover:bg-slate-700 text-slate-300 disabled:opacity-30 transition cursor-pointer"
-                    title="Pindahkan ke bawah"
-                  >
-                    <ArrowDown className="w-3.5 h-3.5" />
-                  </button>
-
-                  <button
-                    onClick={() => handleRemove(item.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
-                    title="Hapus file ini"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* CamScanner Style Standardization Settings */}
-          <div className="p-5 rounded-2xl bg-surface-200/80 border border-slate-700/80 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sliders className="w-4 h-4 text-indigo-400" />
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider">
-                  Standarisasi Skala & Ukuran Kertas (CamScanner Style)
-                </h4>
-              </div>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Ukuran Seragam & Rapi
-              </span>
+          {/* Paper Standardization Settings */}
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-4">
+            <div className="flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+              <h4 className="text-xs font-semibold text-white">Paper Size Normalization</h4>
             </div>
 
-            <p className="text-xs text-slate-400 leading-relaxed">
-              Otomatis menyamakan semua halaman ke format kertas standar, menskalakan konten secara proporsional di tengah halaman (*fit & centered*), sehingga ukuran halaman tidak belang-belang.
-            </p>
-
-            {/* Paper Size Selector Grid */}
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-slate-300">Pilih Ukuran Kertas Target:</span>
+              <span className="text-xs text-zinc-400">Target Paper Format:</span>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
-                  { id: 'a4', label: 'A4 (Standar)', desc: '210 x 297 mm' },
-                  { id: 'f4', label: 'F4 / Folio', desc: '215 x 330 mm' },
-                  { id: 'letter', label: 'US Letter', desc: '8.5 x 11 in' },
-                  { id: 'original', label: 'Ukuran Asli', desc: 'Tanpa Skala (Campuran)' },
+                  { id: 'a4', label: 'A4 Standard', desc: '210 × 297 mm' },
+                  { id: 'f4', label: 'F4 / Folio', desc: '215 × 330 mm' },
+                  { id: 'letter', label: 'US Letter', desc: '8.5 × 11 in' },
+                  { id: 'original', label: 'Original', desc: 'Keep mixed' },
                 ].map((s) => (
                   <button
                     key={s.id}
                     type="button"
                     onClick={() => setPaperSize(s.id as TargetPaperSize)}
-                    className={`p-2.5 rounded-xl border text-left transition cursor-pointer ${
+                    className={`p-2.5 rounded-lg border text-left transition cursor-pointer ${
                       paperSize === s.id
-                        ? 'bg-indigo-600/30 border-indigo-500 text-white shadow-glow-primary'
-                        : 'bg-surface-100 border-slate-700/70 text-slate-300 hover:border-slate-600'
+                        ? 'bg-zinc-100 border-zinc-100 text-zinc-950 shadow-subtle'
+                        : 'bg-surface-100 border-border text-zinc-300 hover:border-zinc-500'
                     }`}
                   >
-                    <p className="text-xs font-bold">{s.label}</p>
-                    <p className="text-[10px] text-slate-400">{s.desc}</p>
+                    <p className="text-xs font-semibold">{s.label}</p>
+                    <p className={`text-[10px] font-mono ${paperSize === s.id ? 'text-zinc-600' : 'text-zinc-500'}`}>{s.desc}</p>
                   </button>
                 ))}
               </div>
             </div>
 
             {paperSize !== 'original' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800">
-                {/* Orientation Mode */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3 border-t border-border">
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold text-slate-300">Orientasi Halaman:</span>
-                  <div className="grid grid-cols-3 gap-1.5 bg-surface-100 p-1 rounded-xl border border-slate-700">
+                  <span className="text-xs text-zinc-400">Page Orientation:</span>
+                  <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-lg border border-border text-xs">
                     {[
-                      { id: 'auto', label: 'Otomatis' },
+                      { id: 'auto', label: 'Auto' },
                       { id: 'portrait', label: 'Portrait' },
                       { id: 'landscape', label: 'Landscape' },
                     ].map((ori) => (
                       <button
                         key={ori.id}
                         type="button"
-                        onClick={() => setOrientation(ori.id as 'auto' | 'portrait' | 'landscape')}
-                        className={`py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        onClick={() => setOrientation(ori.id as any)}
+                        className={`py-1 rounded text-xs font-medium transition cursor-pointer ${
                           orientation === ori.id
-                            ? 'bg-indigo-600 text-white shadow'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-zinc-800 text-white shadow-sm'
+                            : 'text-zinc-400 hover:text-white'
                         }`}
                       >
                         {ori.label}
@@ -265,23 +256,22 @@ export function MergeView() {
                   </div>
                 </div>
 
-                {/* Margin Setting */}
                 <div className="space-y-1.5">
-                  <span className="text-xs font-semibold text-slate-300">Margin Pengaman:</span>
-                  <div className="grid grid-cols-3 gap-1.5 bg-surface-100 p-1 rounded-xl border border-slate-700">
+                  <span className="text-xs text-zinc-400">Safe Margin:</span>
+                  <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-lg border border-border text-xs">
                     {[
-                      { val: 5, label: 'Rapat (5pt)' },
-                      { val: 15, label: 'Normal (15pt)' },
-                      { val: 30, label: 'Luas (30pt)' },
+                      { val: 5, label: 'Tight (5pt)' },
+                      { val: 15, label: 'Standard (15pt)' },
+                      { val: 30, label: 'Wide (30pt)' },
                     ].map((m) => (
                       <button
                         key={m.val}
                         type="button"
                         onClick={() => setMargin(m.val)}
-                        className={`py-1.5 rounded-lg text-xs font-medium transition cursor-pointer ${
+                        className={`py-1 rounded text-xs font-medium transition cursor-pointer ${
                           margin === m.val
-                            ? 'bg-indigo-600 text-white shadow'
-                            : 'text-slate-400 hover:text-white'
+                            ? 'bg-zinc-800 text-white shadow-sm'
+                            : 'text-zinc-400 hover:text-white'
                         }`}
                       >
                         {m.label}
@@ -296,20 +286,15 @@ export function MergeView() {
           <button
             onClick={handleMerge}
             disabled={isMerging || items.length < 2}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 via-primary-600 to-accent-cyan hover:opacity-90 text-white font-bold text-sm transition shadow-glow-purple disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer"
+            className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle"
           >
             {isMerging ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Menggabungkan & Menstandarisasi Dokumen...</span>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Processing in RAM...</span>
               </>
             ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                <span>
-                  Gabungkan {items.length} File PDF ({paperSize.toUpperCase()})
-                </span>
-              </>
+              <span>Merge {items.length} Documents</span>
             )}
           </button>
         </div>
@@ -325,19 +310,15 @@ export function MergeView() {
             setItems([]);
             setMergedResult(null);
           }}
-          title="PDF Berhasil Digabungkan!"
+          title="PDFs successfully merged"
           filename={mergedResult.filename}
           fileSize={mergedResult.bytes.byteLength}
           stats={[
-            { label: 'Total File Digabung', value: items.length },
-            { label: 'Total Halaman', value: totalPages },
-            { label: 'Standar Kertas', value: paperSize.toUpperCase() },
-            {
-              label: 'Skala & Fit',
-              value: paperSize === 'original' ? 'As-Is' : 'Proporsional (Centered)',
-            },
+            { label: 'Files merged', value: items.length },
+            { label: 'Total pages', value: totalPages },
+            { label: 'Paper standard', value: paperSize.toUpperCase() },
           ]}
-          downloadLabel="Unduh File PDF Gabungan"
+          downloadLabel="Download Merged PDF"
         />
       )}
     </div>

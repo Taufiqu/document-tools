@@ -1,7 +1,5 @@
-'use client';
-
 import React from 'react';
-import { RotateCw, RotateCcw, Trash2, Undo2, GripVertical } from 'lucide-react';
+import { RotateCw, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { PageAction } from '@/lib/pdf-engine';
 
 interface PageThumbnailProps {
@@ -24,66 +22,58 @@ export function PageThumbnail({
 
   return (
     <div
-      className={`relative group rounded-xl p-3 border transition-all duration-200 flex flex-col items-center select-none ${
+      className={`relative rounded-lg p-2.5 border transition flex flex-col items-center select-none ${
         isDeleted
-          ? 'bg-rose-950/20 border-rose-800/50 opacity-50 grayscale'
-          : 'bg-surface-100 border-slate-700/80 hover:border-primary-500/50 hover:shadow-glow-primary'
+          ? 'bg-surface-300 border-rose-950/60 opacity-40 grayscale'
+          : 'bg-surface-100 border-border hover:border-zinc-500'
       }`}
     >
-      {/* Top Header with Page Tag & Controls */}
-      <div className="w-full flex items-center justify-between gap-1 mb-2 text-xs">
-        <div className="flex items-center gap-1">
-          <GripVertical className="w-3.5 h-3.5 text-slate-500 cursor-grab" />
-          <span
-            className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
-              isDeleted
-                ? 'bg-rose-500/20 text-rose-400'
-                : 'bg-primary-500/20 text-primary-300'
-            }`}
-          >
-            Page {displayNumber}
-          </span>
-        </div>
+      {/* Top Header */}
+      <div className="w-full flex items-center justify-between mb-1.5 text-xs">
+        <span
+          className={`font-mono text-[10px] ${
+            isDeleted ? 'text-rose-400' : 'text-zinc-400'
+          }`}
+        >
+          #{displayNumber}
+        </span>
 
         {rotation !== 0 && !isDeleted && (
-          <span className="text-[10px] px-1 py-0.5 rounded bg-accent-indigo/20 text-accent-indigo font-mono">
+          <span className="text-[10px] font-mono text-zinc-400">
             {rotation}°
           </span>
         )}
       </div>
 
-      {/* Thumbnail Preview Area with CSS Rotation */}
-      <div className="w-36 h-48 bg-slate-900 rounded-lg overflow-hidden border border-slate-800 flex items-center justify-center relative shadow-inner">
+      {/* Thumbnail Area */}
+      <div className="w-32 h-44 bg-surface-300 rounded overflow-hidden border border-border flex items-center justify-center relative">
         {action.thumbnailUrl ? (
           <img
             src={action.thumbnailUrl}
             alt={`Page ${displayNumber}`}
             style={{ transform: `rotate(${rotation}deg)` }}
-            className="max-w-full max-h-full object-contain transition-transform duration-200"
+            className="max-w-full max-h-full object-contain"
           />
         ) : (
-          <div className="text-slate-600 text-xs flex flex-col items-center">
-            <span className="font-mono">P{displayNumber}</span>
-          </div>
+          <div className="text-zinc-600 font-mono text-xs">P{displayNumber}</div>
         )}
 
-        {/* Deleted overlay banner */}
         {isDeleted && (
-          <div className="absolute inset-0 bg-rose-950/80 flex items-center justify-center p-2 text-center">
-            <span className="text-rose-300 text-xs font-bold uppercase tracking-wider">
-              Marked for Removal
+          <div className="absolute inset-0 bg-surface-300/90 flex items-center justify-center p-2 text-center">
+            <span className="text-rose-400 text-[10px] font-mono uppercase">
+              Removed
             </span>
           </div>
         )}
       </div>
 
       {/* Action Buttons Bar */}
-      <div className="w-full flex items-center justify-center gap-1.5 mt-2.5 pt-2 border-t border-slate-800/80">
+      <div className="w-full flex items-center justify-center gap-1 mt-2 pt-1.5 border-t border-border/60">
         <button
           onClick={() => onRotateCcw(action.id)}
           disabled={isDeleted}
-          className="p-1.5 rounded-lg bg-surface-200 hover:bg-slate-700 text-slate-300 hover:text-white disabled:opacity-30 transition"
-          title="Rotate 90° counter-clockwise"
+          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-surface-50 disabled:opacity-20 transition cursor-pointer"
+          title="Rotate -90°"
         >
           <RotateCcw className="w-3.5 h-3.5" />
         </button>
@@ -91,20 +81,20 @@ export function PageThumbnail({
         <button
           onClick={() => onRotateCw(action.id)}
           disabled={isDeleted}
-          className="p-1.5 rounded-lg bg-surface-200 hover:bg-slate-700 text-slate-300 hover:text-white disabled:opacity-30 transition"
-          title="Rotate 90° clockwise"
+          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-surface-50 disabled:opacity-20 transition cursor-pointer"
+          title="Rotate +90°"
         >
           <RotateCw className="w-3.5 h-3.5" />
         </button>
 
         <button
           onClick={() => onToggleDelete(action.id)}
-          className={`p-1.5 rounded-lg transition ${
+          className={`p-1 rounded transition cursor-pointer ${
             isDeleted
-              ? 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-              : 'bg-rose-500/10 text-rose-400 hover:bg-rose-500/20'
+              ? 'text-emerald-400 hover:bg-surface-50'
+              : 'text-zinc-400 hover:text-rose-400 hover:bg-surface-50'
           }`}
-          title={isDeleted ? 'Restore page' : 'Delete page'}
+          title={isDeleted ? 'Restore' : 'Delete'}
         >
           {isDeleted ? <Undo2 className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
         </button>

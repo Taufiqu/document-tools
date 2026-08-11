@@ -8,7 +8,6 @@ import {
 } from '@/lib/image-engine';
 import {
   Image as ImageIcon,
-  Sparkles,
   Loader2,
   Sliders,
   Trash2,
@@ -40,7 +39,7 @@ export function PngToJpgView() {
     );
 
     if (pngOnly.length === 0) {
-      alert('Silakan pilih berkas berekstensi PNG.');
+      alert('Please select valid PNG image files.');
       return;
     }
 
@@ -70,7 +69,7 @@ export function PngToJpgView() {
   const handleConvert = async () => {
     if (selectedFiles.length === 0) return;
     setIsProcessing(true);
-    setProgressText('Mengonversi format PNG ke JPG...');
+    setProgressText('Converting PNG to JPEG...');
 
     try {
       const { items, zipBlob: generatedZip } = await batchConvertPngToJpg(
@@ -84,7 +83,7 @@ export function PngToJpgView() {
       }
       setShowResultModal(true);
     } catch (err) {
-      alert(`Gagal mengonversi gambar: ${err}`);
+      alert(`Failed to convert image: ${err}`);
     } finally {
       setIsProcessing(false);
       setProgressText('');
@@ -109,16 +108,16 @@ export function PngToJpgView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-rose-400 font-semibold text-xs uppercase tracking-wider mb-1">
-          <ImageIcon className="w-4 h-4" />
-          <span>Image Format Converter</span>
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono mb-1">
+          <ImageIcon className="w-3.5 h-3.5" />
+          <span>MODULE / PNG TO JPG</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">PNG to JPG / JPEG Converter</h1>
-        <p className="text-xs sm:text-sm text-slate-400">
-          Ubah gambar format PNG menjadi JPG berkualitas tinggi secara instan 100% di browser tanpa upload server. Dilengkapi penanganan latar belakang transparan.
+        <h1 className="text-xl sm:text-2xl font-semibold text-white">PNG to JPG Converter</h1>
+        <p className="text-xs sm:text-sm text-zinc-400">
+          Transform PNG images to JPEG format with custom background fill for transparent channels.
         </p>
       </div>
 
@@ -126,25 +125,25 @@ export function PngToJpgView() {
         onFilesSelected={handleFilesSelected}
         multiple={true}
         accept="image/png"
-        title="Tarik File Gambar PNG ke Sini"
-        subtitle="Pilih satu atau banyak file PNG sekaligus untuk dikonversi ke JPG"
+        title="Select or drop PNG images"
+        subtitle="Batch conversion with alpha channel background replacement"
       />
 
       {selectedFiles.length > 0 && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Settings Card */}
-          <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-5">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-rose-400" />
-              <span>Pengaturan Kualitas & Latar Belakang Transparan</span>
-            </h3>
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-4">
+            <div className="flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+              <h3 className="text-xs font-semibold text-white">Compression & Transparency</h3>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Quality Slider */}
-              <div className="p-4 rounded-xl bg-surface-200 border border-slate-700/60 space-y-2">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-slate-300">Kualitas Gambar JPG</span>
-                  <span className="text-rose-400 font-bold font-mono">{quality}%</span>
+              <div className="p-3 rounded-lg bg-surface-100 border border-border space-y-1.5">
+                <div className="flex justify-between text-xs text-zinc-400">
+                  <span>JPEG Quality</span>
+                  <span className="font-mono text-zinc-200">{quality}%</span>
                 </div>
                 <input
                   type="range"
@@ -153,46 +152,41 @@ export function PngToJpgView() {
                   step={1}
                   value={quality}
                   onChange={(e) => setQuality(parseInt(e.target.value))}
-                  className="w-full accent-rose-500 cursor-pointer"
+                  className="w-full accent-zinc-200 cursor-pointer"
                 />
-                <div className="flex justify-between text-[10px] text-slate-500">
-                  <span>Ukuran Ringan (60%)</span>
-                  <span>Standar HD (92%)</span>
-                  <span>Maksimum (100%)</span>
-                </div>
               </div>
 
-              {/* Background Color for Transparency Replacement */}
-              <div className="p-4 rounded-xl bg-surface-200 border border-slate-700/60 space-y-2">
-                <div className="flex justify-between text-xs font-medium">
-                  <span className="text-slate-300 flex items-center gap-1.5">
-                    <Palette className="w-3.5 h-3.5 text-rose-400" />
-                    <span>Warna Pengganti Transparan</span>
+              {/* Background Color */}
+              <div className="p-3 rounded-lg bg-surface-100 border border-border space-y-1.5">
+                <div className="flex justify-between text-xs text-zinc-400">
+                  <span className="flex items-center gap-1.5">
+                    <Palette className="w-3 h-3 text-zinc-400" />
+                    <span>Alpha Background Fill</span>
                   </span>
-                  <span className="font-mono text-slate-400 text-[11px]">{bgColor.toUpperCase()}</span>
+                  <span className="font-mono text-zinc-300 text-[10px]">{bgColor.toUpperCase()}</span>
                 </div>
 
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-1.5 pt-0.5">
                   {[
-                    { label: 'Putih', color: '#ffffff' },
-                    { label: 'Hitam', color: '#000000' },
-                    { label: 'Abu-Abu', color: '#f3f4f6' },
+                    { label: 'White', color: '#ffffff' },
+                    { label: 'Black', color: '#000000' },
+                    { label: 'Gray', color: '#f3f4f6' },
                   ].map((c) => (
                     <button
                       key={c.color}
                       type="button"
                       onClick={() => setBgColor(c.color)}
-                      className={`px-2.5 py-1 rounded-lg text-xs font-medium border flex items-center gap-1.5 transition cursor-pointer ${
+                      className={`px-2 py-0.5 rounded text-xs border flex items-center gap-1.5 transition cursor-pointer ${
                         bgColor === c.color
-                          ? 'bg-rose-500/20 border-rose-500 text-white'
-                          : 'bg-surface-100 border-slate-700 text-slate-300 hover:border-slate-600'
+                          ? 'bg-zinc-800 border-zinc-500 text-white'
+                          : 'bg-surface-50 border-border text-zinc-400'
                       }`}
                     >
                       <span
-                        className="w-3 h-3 rounded-full border border-slate-600 inline-block"
+                        className="w-2.5 h-2.5 rounded-full border border-border inline-block"
                         style={{ backgroundColor: c.color }}
                       />
-                      <span>{c.label}</span>
+                      <span className="text-[11px]">{c.label}</span>
                     </button>
                   ))}
 
@@ -200,8 +194,8 @@ export function PngToJpgView() {
                     type="color"
                     value={bgColor}
                     onChange={(e) => setBgColor(e.target.value)}
-                    className="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0"
-                    title="Pilih warna kustom"
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-0 ml-auto"
+                    title="Custom color"
                   />
                 </div>
               </div>
@@ -209,69 +203,60 @@ export function PngToJpgView() {
           </div>
 
           {/* Selected File Grid List */}
-          <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white">
-                Daftar File PNG Siap Dikonversi ({selectedFiles.length} berkas • {formatBytes(totalOriginalSize)})
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
+              <h3 className="text-xs font-mono uppercase text-zinc-400">
+                Selected Images ({selectedFiles.length} • {formatBytes(totalOriginalSize)})
               </h3>
               <button
                 onClick={handleClearAll}
-                className="text-xs text-rose-400 hover:text-rose-300 transition flex items-center gap-1 cursor-pointer"
+                className="text-xs text-zinc-400 hover:text-rose-400 transition flex items-center gap-1 cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Hapus Semua</span>
+                <Trash2 className="w-3 h-3" />
+                <span>Clear</span>
               </button>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
               {selectedFiles.map((item, index) => (
                 <div
                   key={item.id}
-                  className="p-3 rounded-xl bg-surface-200 border border-slate-700/70 hover:border-rose-500/40 flex flex-col justify-between gap-2 text-xs"
+                  className="p-2 rounded-lg bg-surface-100 border border-border flex flex-col justify-between gap-1.5 text-xs"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="w-5 h-5 rounded bg-rose-600/30 text-rose-300 font-bold flex items-center justify-center text-[10px]">
-                      {index + 1}
-                    </span>
-                    <p className="font-semibold text-white truncate max-w-[170px]">{item.name}</p>
+                    <span className="text-[10px] font-mono text-zinc-400">#{index + 1}</span>
                     <button
                       onClick={() => handleRemove(item.id)}
-                      className="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
+                      className="p-0.5 rounded text-zinc-500 hover:text-rose-400 transition cursor-pointer"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   </div>
 
-                  <div className="w-full h-28 bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center border border-slate-800">
+                  <div className="w-full h-24 bg-surface-300 rounded overflow-hidden flex items-center justify-center border border-border/60">
                     <img src={item.previewUrl} alt={item.name} className="max-w-full max-h-full object-contain" />
                   </div>
 
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-slate-400 text-[10px]">
+                  <div className="flex items-center justify-between pt-1 border-t border-border/40 text-[10px] font-mono text-zinc-400">
+                    <span className="truncate max-w-[90px]">{item.name}</span>
                     <span>{formatBytes(item.size)}</span>
-                    <span className="text-rose-400 font-bold">→ .JPG</span>
                   </div>
                 </div>
               ))}
             </div>
 
-            {/* Execute Button */}
             <button
               onClick={handleConvert}
               disabled={isProcessing || selectedFiles.length === 0}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-pink-600 to-amber-500 hover:opacity-90 text-white font-bold text-sm transition shadow-glow-primary disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle mt-2"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>{progressText || 'Mengonversi ke JPG...'}</span>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>{progressText || 'Converting...'}</span>
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>
-                    Konversi {selectedFiles.length} Gambar PNG ke JPG
-                  </span>
-                </>
+                <span>Convert {selectedFiles.length} Images to JPG</span>
               )}
             </button>
           </div>
@@ -285,7 +270,7 @@ export function PngToJpgView() {
           onClose={() => setShowResultModal(false)}
           onDownload={handleDownloadAll}
           onReset={handleReset}
-          title="Konversi PNG ke JPG Berhasil!"
+          title="Conversion complete"
           filename={
             convertedItems.length === 1
               ? convertedItems[0].targetName
@@ -297,11 +282,11 @@ export function PngToJpgView() {
               : zipBlob?.size
           }
           stats={[
-            { label: 'Jumlah Gambar', value: `${convertedItems.length} berkas` },
-            { label: 'Format Output', value: 'JPG (JPEG)' },
-            { label: 'Kualitas', value: `${quality}%` },
+            { label: 'Images processed', value: `${convertedItems.length} files` },
+            { label: 'Target format', value: 'JPG (JPEG)' },
+            { label: 'Quality', value: `${quality}%` },
             {
-              label: 'Ukuran Total',
+              label: 'Total output size',
               value: formatBytes(
                 convertedItems.length === 1
                   ? convertedItems[0].convertedSize
@@ -311,8 +296,8 @@ export function PngToJpgView() {
           ]}
           downloadLabel={
             convertedItems.length === 1
-              ? 'Unduh Gambar JPG'
-              : 'Unduh Semua JPG (.ZIP)'
+              ? 'Download JPG File'
+              : 'Download All (.ZIP)'
           }
         />
       )}

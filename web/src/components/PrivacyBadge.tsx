@@ -1,7 +1,5 @@
-'use client';
-
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Cpu, WifiOff, X, CheckCircle2 } from 'lucide-react';
+import { Shield, X, Cpu, HardDrive, WifiOff } from 'lucide-react';
 
 export function PrivacyBadge() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,73 +8,60 @@ export function PrivacyBadge() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="group flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all duration-200 text-xs font-medium cursor-pointer shadow-sm hover:shadow-glow-emerald"
-        title="Click to view client-side privacy guarantee"
+        className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-100 border border-border hover:border-border-strong text-zinc-300 hover:text-white transition text-xs font-medium cursor-pointer"
+        title="Privacy & processing architecture"
       >
-        <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-        </span>
-        <ShieldCheck className="w-3.5 h-3.5" />
-        <span>100% Client-Side • Zero Server Upload</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+        <span className="text-[11px]">Local Processing</span>
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-lg bg-surface-200 border border-slate-700/60 rounded-2xl p-6 shadow-2xl text-slate-200 animate-slide-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-md bg-surface-200 border border-border rounded-xl p-6 shadow-elevated text-zinc-200">
             <button
               onClick={() => setIsOpen(false)}
-              className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="absolute top-4 right-4 p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-surface-100 transition cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-400">
-                <Lock className="w-6 h-6" />
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className="p-2 rounded-lg bg-surface-100 border border-border text-zinc-100">
+                <Shield className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Privacy-First Architecture</h3>
-                <p className="text-xs text-emerald-400 font-medium">Zero-Server Data Guarantee</p>
+                <h3 className="text-sm font-semibold text-white">Local Memory Architecture</h3>
+                <p className="text-xs text-zinc-400">Zero server data transmission</p>
               </div>
             </div>
 
-            <p className="text-sm text-slate-300 mb-5 leading-relaxed">
-              Semua operasi manipulasi dokumen (merge, split, kompresi, organizer, watermark) dieksekusi{' '}
-              <strong className="text-white font-semibold">100% di memori (RAM) peramban Anda</strong> via WebAssembly & JavaScript murni.
+            <p className="text-xs text-zinc-300 mb-4 leading-relaxed">
+              Every document manipulation (merging, splitting, page reordering, compression, formatting) executes entirely inside your browser's RAM via WebAssembly and Canvas.
             </p>
 
-            <div className="space-y-3 mb-6">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-100 border border-slate-800">
-                <Cpu className="w-5 h-5 text-primary-400 shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <span className="font-semibold text-white">Local CPU & RAM Processing</span>
-                  <p className="text-slate-400 mt-0.5">Dokumen Anda tidak pernah diunggah ke cloud atau server backend mana pun.</p>
+            <div className="space-y-2 mb-5 text-xs">
+              <div className="p-3 rounded-lg bg-surface-100 border border-border/80 flex items-start gap-2.5">
+                <Cpu className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-white">Client-side execution</p>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">Files are read into memory and processed locally on your machine.</p>
                 </div>
               </div>
 
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-100 border border-slate-800">
-                <WifiOff className="w-5 h-5 text-accent-cyan shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <span className="font-semibold text-white">Bekerja Sepenuhnya Offline</span>
-                  <p className="text-slate-400 mt-0.5">Anda dapat mematikan koneksi internet setelah membuka web dan aplikasi tetap berfungsi normal.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-surface-100 border border-slate-800">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <span className="font-semibold text-white">Verifikasi Langsung</span>
-                  <p className="text-slate-400 mt-0.5">Buka Developer Tools (F12) $\rightarrow$ Tab Network. Anda akan melihat 0 byte data berkas yang dikirimkan.</p>
+              <div className="p-3 rounded-lg bg-surface-100 border border-border/80 flex items-start gap-2.5">
+                <WifiOff className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-white">Works offline</p>
+                  <p className="text-zinc-400 text-[11px] mt-0.5">Once loaded, you can disconnect from the internet and continue working.</p>
                 </div>
               </div>
             </div>
 
             <button
               onClick={() => setIsOpen(false)}
-              className="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-medium text-sm transition shadow-glow-primary"
+              className="w-full py-2 rounded-lg btn-secondary text-xs cursor-pointer"
             >
-              Mengerti & Lanjutkan
+              Close
             </button>
           </div>
         </div>

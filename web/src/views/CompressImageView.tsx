@@ -3,7 +3,7 @@ import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
 import { downloadBlob, formatBytes } from '@/lib/utils';
 import { compressImage, CompressedImageResult } from '@/lib/image-engine';
-import { Minimize2, Sliders, Loader2, Sparkles, ArrowRight } from 'lucide-react';
+import { Minimize2, Sliders, Loader2 } from 'lucide-react';
 
 export function CompressImageView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -38,7 +38,7 @@ export function CompressImageView() {
       setResultFilename(`${base}_compressed.${ext}`);
       setShowResultModal(true);
     } catch (err) {
-      alert(`Gagal mengompresi gambar: ${err}`);
+      alert(`Failed to compress image: ${err}`);
     } finally {
       setIsCompressing(false);
     }
@@ -51,16 +51,16 @@ export function CompressImageView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-emerald-400 font-semibold text-xs uppercase tracking-wider mb-1">
-          <Minimize2 className="w-4 h-4" />
-          <span>Lossless & WebP Optimizer</span>
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono mb-1">
+          <Minimize2 className="w-3.5 h-3.5" />
+          <span>MODULE / IMAGE COMPRESSOR</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Image Compressor</h1>
-        <p className="text-xs sm:text-sm text-slate-400">
-          Perkecil ukuran file gambar secara drastis langsung di browser dengan kontrol kualitas dan resolusi fleksibel.
+        <h1 className="text-xl sm:text-2xl font-semibold text-white">Compress Image File</h1>
+        <p className="text-xs sm:text-sm text-zinc-400">
+          Optimize image weights in browser memory with granular quality and dimension controls.
         </p>
       </div>
 
@@ -69,44 +69,44 @@ export function CompressImageView() {
           onFilesSelected={handleFilesSelected}
           multiple={false}
           accept="image/*"
-          title="Tarik File Gambar ke Sini"
-          subtitle="Mendukung JPG, PNG, WebP untuk kompresi kilat tanpa upload"
+          title="Select or drop an image file"
+          subtitle="Supports JPEG, PNG, and WebP compression"
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary */}
-          <div className="p-4 rounded-2xl bg-surface-100 border border-slate-800 flex items-center justify-between">
+          <div className="p-3.5 rounded-xl bg-surface-200 border border-border flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-surface-200 border border-slate-700 overflow-hidden flex items-center justify-center">
+              <div className="w-10 h-10 rounded-lg bg-surface-100 border border-border overflow-hidden flex items-center justify-center">
                 <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
               </div>
               <div>
-                <p className="text-sm font-bold text-white max-w-sm truncate">{selectedFile.name}</p>
-                <p className="text-xs text-slate-400">Ukuran Asli: {formatBytes(selectedFile.size)}</p>
+                <p className="text-xs font-medium text-white truncate max-w-sm">{selectedFile.name}</p>
+                <p className="text-[11px] font-mono text-zinc-400">Original weight: {formatBytes(selectedFile.size)}</p>
               </div>
             </div>
 
             <button
               onClick={handleReset}
-              className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-surface-200 hover:bg-slate-700 transition cursor-pointer"
+              className="text-xs text-zinc-400 hover:text-white px-2.5 py-1 rounded-md btn-secondary cursor-pointer"
             >
-              Ganti Gambar
+              Change Image
             </button>
           </div>
 
           {/* Controls */}
-          <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-5">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-emerald-400" />
-              <span>Pengaturan Kompresi & Format Target</span>
-            </h3>
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-4">
+            <div className="flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+              <h3 className="text-xs font-semibold text-white">Compression Parameters</h3>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {/* Quality slider */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-300 font-semibold">Tingkat Kualitas</span>
-                  <span className="text-emerald-400 font-mono font-bold">{quality}%</span>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-zinc-400">
+                  <span>Quality</span>
+                  <span className="font-mono text-zinc-200">{quality}%</span>
                 </div>
                 <input
                   type="range"
@@ -115,22 +115,22 @@ export function CompressImageView() {
                   step={5}
                   value={quality}
                   onChange={(e) => setQuality(parseInt(e.target.value))}
-                  className="w-full accent-emerald-500 cursor-pointer"
+                  className="w-full accent-zinc-200 cursor-pointer"
                 />
               </div>
 
               {/* Max dimension */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-slate-300 font-semibold">Batas Resolusi Maks</span>
-                  <span className="text-emerald-400 font-mono font-bold">{maxDimension} px</span>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-zinc-400">
+                  <span>Max Dimension</span>
+                  <span className="font-mono text-zinc-200">{maxDimension}px</span>
                 </div>
                 <select
                   value={maxDimension}
                   onChange={(e) => setMaxDimension(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-200 border border-slate-700 text-white text-xs font-semibold focus:outline-none cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-surface-100 border border-border text-white text-xs font-mono focus:outline-none cursor-pointer"
                 >
-                  <option value={3840}>4K Ultra HD (3840px)</option>
+                  <option value={3840}>4K (3840px)</option>
                   <option value={1920}>Full HD (1920px)</option>
                   <option value={1280}>HD Ready (1280px)</option>
                   <option value={800}>Web Small (800px)</option>
@@ -138,15 +138,15 @@ export function CompressImageView() {
               </div>
 
               {/* Format */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-semibold text-slate-300 block">Format Output</span>
+              <div className="space-y-1">
+                <span className="text-xs text-zinc-400 block">Format</span>
                 <select
                   value={format}
                   onChange={(e) => setFormat(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-surface-200 border border-slate-700 text-white text-xs font-semibold focus:outline-none cursor-pointer"
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-surface-100 border border-border text-white text-xs font-mono focus:outline-none cursor-pointer"
                 >
-                  <option value="image/jpeg">JPEG (Kompatibel Tinggi)</option>
-                  <option value="image/webp">WebP (Ukuran Paling Ringan)</option>
+                  <option value="image/jpeg">JPEG Standard</option>
+                  <option value="image/webp">WebP Modern</option>
                   <option value="image/png">PNG</option>
                 </select>
               </div>
@@ -155,18 +155,15 @@ export function CompressImageView() {
             <button
               onClick={handleCompress}
               disabled={isCompressing}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:opacity-90 text-white font-bold text-sm transition shadow-glow-emerald disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle mt-2"
             >
               {isCompressing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Mengompresi Gambar di RAM...</span>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Compressing in RAM...</span>
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Kompres Gambar Sekarang</span>
-                </>
+                <span>Compress Image</span>
               )}
             </button>
           </div>
@@ -180,16 +177,16 @@ export function CompressImageView() {
           onClose={() => setShowResultModal(false)}
           onDownload={() => downloadBlob(result.blob, resultFilename)}
           onReset={handleReset}
-          title="Gambar Berhasil Dikompresi!"
+          title="Image successfully compressed"
           filename={resultFilename}
           fileSize={result.compressedSize}
           stats={[
-            { label: 'Ukuran Awal', value: formatBytes(result.originalSize) },
-            { label: 'Ukuran Akhir', value: formatBytes(result.compressedSize) },
-            { label: 'Hemat Ukuran', value: `${result.reductionPercentage}% LEBIH RINGAN` },
-            { label: 'Dimensi Akhir', value: `${result.width}x${result.height} px` },
+            { label: 'Original weight', value: formatBytes(result.originalSize) },
+            { label: 'Compressed weight', value: formatBytes(result.compressedSize) },
+            { label: 'Reduction', value: `-${result.reductionPercentage}%` },
+            { label: 'Resolution', value: `${result.width}×${result.height} px` },
           ]}
-          downloadLabel="Unduh Gambar Terkompresi"
+          downloadLabel="Download Compressed Image"
         />
       )}
     </div>

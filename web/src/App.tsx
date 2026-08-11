@@ -16,9 +16,9 @@ const FaviconView = lazy(() => import('./views/FaviconView').then((m) => ({ defa
 
 function ViewFallback() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-slate-400">
-      <Loader2 className="w-8 h-8 text-primary-500 animate-spin" />
-      <p className="text-xs font-medium tracking-wide">Memuat Modul Engine...</p>
+    <div className="flex flex-col items-center justify-center min-h-[300px] gap-2.5 text-zinc-500">
+      <Loader2 className="w-5 h-5 animate-spin text-zinc-400" />
+      <p className="text-xs font-mono">Loading module...</p>
     </div>
   );
 }
@@ -58,10 +58,10 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-slate-100 selection:bg-primary-500 selection:text-white">
+    <div className="min-h-screen flex flex-col bg-background text-zinc-100 selection:bg-zinc-800 selection:text-white">
       <Navbar currentTool={currentTool} onSelectTool={handleSelectTool} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Suspense fallback={<ViewFallback />}>
           {currentTool === 'overview' && <OverviewView onSelectTool={handleSelectTool} />}
           {currentTool === 'organizer' && <OrganizerView />}
@@ -76,16 +76,16 @@ export function App() {
         </Suspense>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 py-6 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p>© {new Date().getFullYear()} DocuCraft. 100% Client-Side Processing • Zero Server Uploads.</p>
-          <div className="flex items-center gap-4 text-[11px] text-slate-400">
-            <span>RAM-Based Privacy</span>
-            <span>•</span>
-            <span>WebAssembly & Canvas</span>
-            <span>•</span>
-            <span>Dual-Deployment Ready</span>
+      {/* Editorial Minimal Footer */}
+      <footer className="border-t border-border py-5 text-xs text-zinc-500">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <p className="font-mono text-[11px]">DocuCraft — Client-Side Studio</p>
+          <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-500">
+            <span>RAM-Based</span>
+            <span>/</span>
+            <span>Zero-Upload</span>
+            <span>/</span>
+            <span>Dual-Deployment</span>
           </div>
         </div>
       </footer>

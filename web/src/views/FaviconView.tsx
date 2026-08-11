@@ -3,7 +3,7 @@ import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
 import { downloadBlob, formatBytes } from '@/lib/utils';
 import { generateFaviconBundle, FaviconBundleResult } from '@/lib/image-engine';
-import { Sparkles, Code, Check, Copy, Loader2, Download } from 'lucide-react';
+import { Sparkles, Code, Check, Copy, Loader2 } from 'lucide-react';
 
 export function FaviconView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -30,7 +30,7 @@ export function FaviconView() {
       setBundleResult(result);
       setShowResultModal(true);
     } catch (err) {
-      alert(`Gagal membuat paket favicon: ${err}`);
+      alert(`Failed to generate favicon pack: ${err}`);
     } finally {
       setIsGenerating(false);
     }
@@ -50,16 +50,16 @@ export function FaviconView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-rose-400 font-semibold text-xs uppercase tracking-wider mb-1">
-          <Sparkles className="w-4 h-4" />
-          <span>Webmaster & Developer Suite</span>
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono mb-1">
+          <Sparkles className="w-3.5 h-3.5" />
+          <span>MODULE / FAVICON GENERATOR</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Favicon & Web Icon Pack Generator</h1>
-        <p className="text-xs sm:text-sm text-slate-400">
-          Ubah logo/gambar Anda menjadi file favicon.ico multi-resolusi dan paket ikon web lengkap (Apple Touch, Android Chrome, PWA, dan HTML tags).
+        <h1 className="text-xl sm:text-2xl font-semibold text-white">Favicon & Web Icon Pack</h1>
+        <p className="text-xs sm:text-sm text-zinc-400">
+          Generate multi-resolution .ico binaries and complete PWA icon bundles with header snippet tags.
         </p>
       </div>
 
@@ -68,58 +68,55 @@ export function FaviconView() {
           onFilesSelected={handleFilesSelected}
           multiple={false}
           accept="image/*"
-          title="Tarik Logo / Gambar Anda ke Sini"
-          subtitle="Gunakan gambar beresolusi persegi (misal: 512x512 PNG transparan) untuk hasil terbaik"
+          title="Select or drop a logo image"
+          subtitle="Square PNG (e.g. 512×512) recommended for optimal icon scaling"
         />
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Summary & Preview */}
-          <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-5">
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-surface-200 border border-slate-700 overflow-hidden flex items-center justify-center p-2">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-lg bg-surface-100 border border-border overflow-hidden flex items-center justify-center p-1.5">
                   <img src={previewUrl} alt="Logo preview" className="w-full h-full object-contain" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-white max-w-sm truncate">{selectedFile.name}</p>
-                  <p className="text-xs text-slate-400">Ukuran file asli: {formatBytes(selectedFile.size)}</p>
+                  <p className="text-xs font-medium text-white truncate max-w-sm">{selectedFile.name}</p>
+                  <p className="text-[11px] font-mono text-zinc-400">Original weight: {formatBytes(selectedFile.size)}</p>
                 </div>
               </div>
 
               <button
                 onClick={handleReset}
-                className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-lg bg-surface-200 hover:bg-slate-700 transition cursor-pointer"
+                className="text-xs text-zinc-400 hover:text-white px-2.5 py-1 rounded-md btn-secondary cursor-pointer"
               >
-                Ganti Logo
+                Change Logo
               </button>
             </div>
 
-            <div className="p-4 rounded-xl bg-surface-200/60 border border-slate-800 text-xs text-slate-300 space-y-1">
-              <p className="font-semibold text-white">Paket yang akan dibuat otomatis:</p>
-              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-slate-400">
-                <li><code>favicon.ico</code> (Format biner standar browser)</li>
-                <li><code>apple-touch-icon.png</code> (180x180 px untuk iPhone & iPad)</li>
-                <li><code>android-chrome-192x192.png</code> & <code>android-chrome-512x512.png</code> (PWA)</li>
-                <li><code>favicon-32x32.png</code> & <code>favicon-16x16.png</code></li>
-                <li><code>site.webmanifest</code> & Snippet Tag HTML</li>
+            <div className="p-3 rounded-lg bg-surface-100 border border-border/80 text-xs space-y-1">
+              <p className="font-medium text-white">Included in package:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-[11px] font-mono text-zinc-400">
+                <li>favicon.ico (Multi-size binary)</li>
+                <li>apple-touch-icon.png (180×180 px)</li>
+                <li>android-chrome-192x192.png & 512x512.png (PWA)</li>
+                <li>favicon-32x32.png & favicon-16x16.png</li>
+                <li>site.webmanifest & HTML head snippet</li>
               </ul>
             </div>
 
             <button
               onClick={handleGenerate}
               disabled={isGenerating}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-rose-600 via-pink-600 to-amber-500 hover:opacity-90 text-white font-bold text-sm transition shadow-glow-primary disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle"
             >
               {isGenerating ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Membuat Seluruh Ukuran Favicon...</span>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Generating icons in RAM...</span>
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Generate Paket Lengkap Favicon & Web Ikon (.ZIP)</span>
-                </>
+                <span>Generate Complete Icon Package (.ZIP)</span>
               )}
             </button>
           </div>
@@ -133,31 +130,31 @@ export function FaviconView() {
           onClose={() => setShowResultModal(false)}
           onDownload={() => downloadBlob(bundleResult.zipBlob, `favicon_pack_${Date.now()}.zip`)}
           onReset={handleReset}
-          title="Paket Favicon Berhasil Dibuat!"
+          title="Favicon pack generated"
           filename={`favicon_pack_${Date.now()}.zip`}
           fileSize={bundleResult.zipBlob.size}
           stats={[
-            { label: 'Total File', value: '7 berkas ikon' },
-            { label: 'Standar Ikon', value: 'Multi-Res (.ico + PNG)' },
+            { label: 'Files included', value: '7 icons + manifest' },
+            { label: 'Format', value: 'Multi-Res (.ico + PNG)' },
           ]}
-          downloadLabel="Unduh Paket Lengkap (.ZIP)"
+          downloadLabel="Download Icon Package (.ZIP)"
         >
           {/* HTML Snippet Box */}
-          <div className="mt-4 p-4 rounded-xl bg-slate-900 border border-slate-800 text-left space-y-2">
-            <div className="flex items-center justify-between text-xs text-slate-300">
-              <span className="font-semibold flex items-center gap-1.5">
-                <Code className="w-3.5 h-3.5 text-primary-400" />
-                <span>HTML Tag untuk &lt;head&gt; Website Anda</span>
+          <div className="mt-3 p-3 rounded-lg bg-surface-100 border border-border text-left space-y-1.5">
+            <div className="flex items-center justify-between text-xs text-zinc-300">
+              <span className="font-medium flex items-center gap-1.5 text-zinc-200">
+                <Code className="w-3.5 h-3.5 text-zinc-400" />
+                <span>HTML &lt;head&gt; tags</span>
               </span>
               <button
                 onClick={handleCopyHtml}
-                className="px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center gap-1 text-[11px] transition cursor-pointer"
+                className="px-2 py-0.5 rounded bg-surface-50 hover:bg-surface-200 text-zinc-300 flex items-center gap-1 text-[10px] font-mono transition cursor-pointer"
               >
                 {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                <span>{copied ? 'Tersalin!' : 'Salin Tag'}</span>
+                <span>{copied ? 'Copied' : 'Copy'}</span>
               </button>
             </div>
-            <pre className="text-[11px] font-mono text-emerald-400 overflow-x-auto p-2 bg-black/40 rounded border border-slate-800/80 select-all">
+            <pre className="text-[10px] font-mono text-zinc-300 overflow-x-auto p-2 bg-surface-300 rounded border border-border/80 select-all">
               {bundleResult.htmlSnippet}
             </pre>
           </div>

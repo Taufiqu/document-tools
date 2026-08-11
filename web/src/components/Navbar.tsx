@@ -25,60 +25,57 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: Grid },
-    { id: 'organizer', label: 'Visual Organizer', icon: FileText, highlight: true },
+    { id: 'organizer', label: 'Page Organizer', icon: FileText },
     { id: 'merge', label: 'Merge PDF', icon: Layers },
     { id: 'split', label: 'Split PDF', icon: Scissors },
     { id: 'watermark', label: 'Watermark', icon: Shield },
-    { id: 'png-to-jpg', label: 'PNG to JPG', icon: ImageIcon, highlight: true },
-    { id: 'pdf-to-image', label: 'PDF to Image', icon: ImageIcon },
-    { id: 'image-to-pdf', label: 'Image to PDF', icon: Download },
+    { id: 'png-to-jpg', label: 'PNG to JPG', icon: ImageIcon },
+    { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
+    { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },
     { id: 'compress-image', label: 'Compress Image', icon: Minimize2 },
     { id: 'favicon', label: 'Favicon Pack', icon: Sparkles },
   ];
 
   return (
     <>
-      <header className="sticky top-0 z-40 w-full border-b border-slate-800/80 bg-background/90 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-sm">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <button
             onClick={() => onSelectTool('overview')}
-            className="flex items-center gap-3 group text-left cursor-pointer"
+            className="flex items-center gap-2.5 group text-left cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 via-indigo-500 to-accent-cyan flex items-center justify-center shadow-glow-primary group-hover:scale-105 transition-transform duration-200">
-              <FileText className="w-5 h-5 text-white" />
+            <div className="w-7 h-7 rounded-md bg-zinc-100 text-zinc-950 flex items-center justify-center font-bold text-xs">
+              D
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-slate-100 to-slate-400">
+                <span className="font-semibold text-sm tracking-tight text-white">
                   DocuCraft
                 </span>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-primary-500/20 text-primary-400 border border-primary-500/30">
-                  Pure SPA
+                <span className="text-[10px] text-zinc-500 font-mono">
+                  v1.0
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 font-normal leading-none hidden sm:block">
-                Dual-Deployment Document & Image Studio
-              </p>
             </div>
           </button>
 
           {/* Privacy & Desktop Buttons */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <PrivacyBadge />
 
             <button
               onClick={() => setShowDesktopModal(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-100 border border-slate-700 hover:border-primary-500/50 hover:bg-surface-50 text-slate-300 hover:text-white transition text-xs font-medium cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-100 border border-border hover:border-border-strong text-zinc-400 hover:text-zinc-200 transition text-xs cursor-pointer"
             >
-              <Laptop className="w-3.5 h-3.5 text-primary-400" />
-              <span className="hidden md:inline">Desktop App Info</span>
+              <Laptop className="w-3.5 h-3.5 text-zinc-400" />
+              <span className="hidden sm:inline text-[11px]">Desktop</span>
             </button>
           </div>
         </div>
 
-        {/* Horizontal Navigation Sub-bar with Instant 0ms SPA Switching */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center gap-1 overflow-x-auto py-2 scrollbar-none border-t border-slate-800/40 text-xs">
+        {/* Minimal Segmented Navigation Bar */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none border-t border-border/50 text-xs">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = currentTool === item.id;
@@ -86,82 +83,68 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
               <button
                 key={item.id}
                 onClick={() => onSelectTool(item.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap transition-all duration-150 font-medium cursor-pointer ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md whitespace-nowrap transition text-xs font-medium cursor-pointer ${
                   isActive
-                    ? 'bg-primary-600/25 text-primary-300 border border-primary-500/50 shadow-glow-primary'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-surface-100 border border-transparent'
+                    ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-subtle'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-surface-100'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-primary-400' : 'text-slate-500'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-zinc-950' : 'text-zinc-500'}`} />
                 <span>{item.label}</span>
-                {item.highlight && !isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse"></span>
-                )}
               </button>
             );
           })}
         </div>
       </header>
 
-      {/* Desktop App & SmartScreen Mitigation Modal */}
+      {/* Desktop App Information Modal */}
       {showDesktopModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-xl bg-surface-200 border border-slate-700 rounded-2xl p-6 shadow-2xl text-slate-200 animate-slide-up">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-lg bg-surface-200 border border-border rounded-xl p-6 shadow-elevated text-zinc-200">
             <button
               onClick={() => setShowDesktopModal(false)}
-              className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+              className="absolute top-4 right-4 p-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-surface-100 transition cursor-pointer"
             >
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-3 mb-4">
-              <div className="p-3 rounded-xl bg-primary-600/20 border border-primary-500/30 text-primary-400">
-                <Laptop className="w-6 h-6" />
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="p-2 rounded-lg bg-surface-100 border border-border text-zinc-100">
+                <Laptop className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-white">Dual-Deployment & Desktop Standalone</h3>
-                <p className="text-xs text-primary-400 font-medium">Solusi 100% Gratis Tanpa Unknown Publisher Warning</p>
+                <h3 className="text-base font-semibold text-white">Desktop Deployment Guide</h3>
+                <p className="text-xs text-zinc-400">Zero-cost standalone desktop options</p>
               </div>
             </div>
 
-            <div className="space-y-4 text-xs text-slate-300 mb-6">
-              <div className="p-3.5 rounded-xl bg-surface-100 border border-slate-800">
-                <div className="flex items-center gap-2 font-semibold text-white mb-1">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>Opsi 1: PWA Desktop App (1-Click Install — Paling Mudah & 0 Biaya)</span>
+            <div className="space-y-3 text-xs text-zinc-300 mb-5">
+              <div className="p-3 rounded-lg bg-surface-100 border border-border">
+                <div className="flex items-center gap-2 font-medium text-white mb-1">
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Option 1: PWA Desktop Install (1-Click)</span>
                 </div>
-                <p className="text-slate-400 leading-relaxed">
-                  Pada browser Chrome/Edge di komputer Anda, klik ikon <strong>Install App</strong> pada bilah URL browser (atau menu titik tiga $\rightarrow$ <em>Install DocuCraft</em>).
-                  Aplikasi akan langsung menjadi program desktop mandiri dengan jendela khusus tanpa peringatan SmartScreen sama sekali.
+                <p className="text-zinc-400 text-[11px] leading-relaxed">
+                  In Chrome or Edge, click the <strong>Install</strong> icon in the address bar to run DocuCraft as a standalone desktop window without browser chrome or warning prompts.
                 </p>
               </div>
 
-              <div className="p-3.5 rounded-xl bg-surface-100 border border-slate-800">
-                <div className="flex items-center gap-2 font-semibold text-white mb-1">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>Opsi 2: Self-Signed Local Certificate Script (Bypass Mandiri)</span>
+              <div className="p-3 rounded-lg bg-surface-100 border border-border">
+                <div className="flex items-center gap-2 font-medium text-white mb-1">
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Option 2: Local Certificate Script (Tauri .exe)</span>
                 </div>
-                <p className="text-slate-400 leading-relaxed">
-                  Jika mengkompilasi file <code className="text-primary-300 bg-slate-800 px-1 py-0.5 rounded">.exe</code> via Tauri, jalankan script <code className="text-primary-300 bg-slate-800 px-1 py-0.5 rounded">scripts/trust-cert.ps1</code> sekali saja di Windows untuk mendaftarkan sertifikat lokal ke Trusted Root secara gratis.
-                </p>
-              </div>
-
-              <div className="p-3.5 rounded-xl bg-surface-100 border border-slate-800">
-                <div className="flex items-center gap-2 font-semibold text-white mb-1">
-                  <Check className="w-4 h-4 text-emerald-400" />
-                  <span>Opsi 3: Windows SmartScreen "Run Anyway"</span>
-                </div>
-                <p className="text-slate-400 leading-relaxed">
-                  Saat membuka file executable mandiri pertama kali: Klik <strong>"More info"</strong> $\rightarrow$ Klik <strong>"Run anyway"</strong>.
+                <p className="text-zinc-400 text-[11px] leading-relaxed">
+                  If compiling to a native binary, run <code className="text-zinc-300 bg-surface-50 px-1 py-0.5 rounded font-mono text-[10px]">scripts/trust-cert.ps1</code> once to register your local certificate to Windows Trusted Root.
                 </p>
               </div>
             </div>
 
             <button
               onClick={() => setShowDesktopModal(false)}
-              className="w-full py-2.5 rounded-xl bg-primary-600 hover:bg-primary-500 text-white font-medium text-xs transition shadow-glow-primary cursor-pointer"
+              className="w-full py-2 rounded-lg btn-secondary text-xs cursor-pointer"
             >
-              Tutup Panduan
+              Close
             </button>
           </div>
         </div>

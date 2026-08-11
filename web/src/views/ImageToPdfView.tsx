@@ -3,7 +3,7 @@ import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
 import { downloadUint8Array, formatBytes } from '@/lib/utils';
 import { imagesToPdf, ImageToPdfOptions } from '@/lib/image-engine';
-import { Download, ArrowUp, ArrowDown, Trash2, Loader2, Sparkles, Sliders } from 'lucide-react';
+import { Download, ArrowUp, ArrowDown, Trash2, Loader2, Sliders } from 'lucide-react';
 
 interface SelectedImageItem {
   id: string;
@@ -81,12 +81,12 @@ export function ImageToPdfView() {
         options
       );
 
-      const filename = `images_combined_${Date.now()}.pdf`;
+      const filename = `images_${Date.now()}.pdf`;
       setResultBytes(pdfBytes);
       setResultFilename(filename);
       setShowResultModal(true);
     } catch (err) {
-      alert(`Gagal membuat PDF dari gambar: ${err}`);
+      alert(`Failed to compile PDF: ${err}`);
     } finally {
       setIsProcessing(false);
     }
@@ -100,16 +100,16 @@ export function ImageToPdfView() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 text-purple-400 font-semibold text-xs uppercase tracking-wider mb-1">
-          <Download className="w-4 h-4" />
-          <span>Image to Document Converter</span>
+        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono mb-1">
+          <Download className="w-3.5 h-3.5" />
+          <span>MODULE / IMAGES TO PDF</span>
         </div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-white">Images to PDF</h1>
-        <p className="text-xs sm:text-sm text-slate-400">
-          Satukan banyak file gambar (PNG, JPG, JPEG) menjadi satu berkas PDF rapi dengan orientasi dan margin kustom.
+        <h1 className="text-xl sm:text-2xl font-semibold text-white">Images to PDF</h1>
+        <p className="text-xs sm:text-sm text-zinc-400">
+          Compile multiple raster images into a clean single PDF document with custom margins.
         </p>
       </div>
 
@@ -117,26 +117,26 @@ export function ImageToPdfView() {
         onFilesSelected={handleFilesSelected}
         multiple={true}
         accept="image/*"
-        title="Tarik File-File Gambar ke Sini"
-        subtitle="Pilih satu atau beberapa gambar untuk digabungkan menjadi 1 file PDF"
+        title="Select or drop image files"
+        subtitle="Compile multiple images into a structured PDF"
       />
 
       {images.length > 0 && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Options card */}
-          <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-purple-400" />
-              <span>Pengaturan Tata Letak Dokumen PDF</span>
-            </h3>
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-4">
+            <div className="flex items-center gap-2">
+              <Sliders className="w-3.5 h-3.5 text-zinc-400" />
+              <h3 className="text-xs font-semibold text-white">Document Layout</h3>
+            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Orientation */}
-              <div className="space-y-1.5">
-                <span className="text-xs font-semibold text-white block">Orientasi Halaman</span>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1">
+                <span className="text-xs text-zinc-400 block">Page Orientation</span>
+                <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-lg border border-border text-xs">
                   {[
-                    { id: 'auto', label: 'Otomatis' },
+                    { id: 'auto', label: 'Auto' },
                     { id: 'portrait', label: 'Portrait' },
                     { id: 'landscape', label: 'Landscape' },
                   ].map((ori) => (
@@ -144,10 +144,10 @@ export function ImageToPdfView() {
                       key={ori.id}
                       type="button"
                       onClick={() => setOrientation(ori.id as any)}
-                      className={`py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                      className={`py-1 rounded text-xs font-medium transition cursor-pointer ${
                         orientation === ori.id
-                          ? 'bg-purple-600/30 border border-purple-500 text-purple-300'
-                          : 'bg-surface-200 border border-slate-700 text-slate-400 hover:border-slate-600'
+                          ? 'bg-zinc-800 text-white shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
                       }`}
                     >
                       {ori.label}
@@ -157,25 +157,25 @@ export function ImageToPdfView() {
               </div>
 
               {/* Margin */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-white font-semibold">Margin Sisi Halaman</span>
-                  <span className="text-purple-400 font-mono font-bold">{margin} pt</span>
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs text-zinc-400">
+                  <span>Page Margin</span>
+                  <span className="font-mono text-zinc-200">{margin} pt</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-lg border border-border text-xs">
                   {[
-                    { label: 'Tanpa Margin (0)', val: 0 },
-                    { label: 'Normal (20)', val: 20 },
-                    { label: 'Besar (40)', val: 40 },
+                    { label: 'None (0)', val: 0 },
+                    { label: 'Standard (20)', val: 20 },
+                    { label: 'Wide (40)', val: 40 },
                   ].map((m) => (
                     <button
                       key={m.val}
                       type="button"
                       onClick={() => setMargin(m.val)}
-                      className={`py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
+                      className={`py-1 rounded text-xs font-medium transition cursor-pointer ${
                         margin === m.val
-                          ? 'bg-purple-600/30 border border-purple-500 text-purple-300'
-                          : 'bg-surface-200 border border-slate-700 text-slate-400 hover:border-slate-600'
+                          ? 'bg-zinc-800 text-white shadow-sm'
+                          : 'text-zinc-400 hover:text-white'
                       }`}
                     >
                       {m.label}
@@ -187,38 +187,37 @@ export function ImageToPdfView() {
           </div>
 
           {/* Image List */}
-          <div className="p-6 rounded-2xl bg-surface-100 border border-slate-800 space-y-4">
-            <div className="flex items-center justify-between">
+          <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-3">
+            <div className="flex items-center justify-between pb-2 border-b border-border">
               <div>
-                <h3 className="text-sm font-bold text-white">Urutan Halaman Gambar</h3>
-                <p className="text-xs text-slate-400">
-                  {images.length} Gambar ({formatBytes(totalSize)})
-                </p>
+                <h3 className="text-xs font-mono uppercase text-zinc-400">
+                  Image Sequence ({images.length} • {formatBytes(totalSize)})
+                </h3>
               </div>
 
               <button
                 onClick={handleClearAll}
-                className="text-xs text-rose-400 hover:text-rose-300 transition flex items-center gap-1 cursor-pointer"
+                className="text-xs text-zinc-400 hover:text-rose-400 transition flex items-center gap-1 cursor-pointer"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Hapus Semua</span>
+                <Trash2 className="w-3 h-3" />
+                <span>Clear</span>
               </button>
             </div>
 
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {images.map((item, index) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between p-2.5 rounded-xl bg-surface-200 border border-slate-700/60 hover:border-purple-500/40 transition text-xs"
+                  className="flex items-center justify-between p-2 rounded-lg bg-surface-100 border border-border text-xs"
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-6 h-6 rounded-lg bg-purple-600/20 text-purple-400 font-bold flex items-center justify-center text-xs">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-4 h-4 rounded bg-surface-50 text-zinc-300 font-mono flex items-center justify-center text-[10px]">
                       {index + 1}
                     </span>
-                    <img src={item.previewUrl} alt={item.name} className="w-10 h-10 object-cover rounded-lg border border-slate-700" />
+                    <img src={item.previewUrl} alt={item.name} className="w-8 h-8 object-cover rounded border border-border" />
                     <div className="truncate">
-                      <p className="font-semibold text-white truncate max-w-xs">{item.name}</p>
-                      <p className="text-[11px] text-slate-400">{formatBytes(item.size)}</p>
+                      <p className="font-medium text-white truncate max-w-xs">{item.name}</p>
+                      <p className="text-[10px] font-mono text-zinc-400">{formatBytes(item.size)}</p>
                     </div>
                   </div>
 
@@ -226,20 +225,20 @@ export function ImageToPdfView() {
                     <button
                       onClick={() => handleMoveUp(index)}
                       disabled={index === 0}
-                      className="p-1.5 rounded-lg bg-surface-100 hover:bg-slate-700 text-slate-300 disabled:opacity-30 transition cursor-pointer"
+                      className="p-1 rounded bg-surface-50 text-zinc-400 hover:text-white disabled:opacity-20 transition cursor-pointer"
                     >
                       <ArrowUp className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleMoveDown(index)}
                       disabled={index === images.length - 1}
-                      className="p-1.5 rounded-lg bg-surface-100 hover:bg-slate-700 text-slate-300 disabled:opacity-30 transition cursor-pointer"
+                      className="p-1 rounded bg-surface-50 text-zinc-400 hover:text-white disabled:opacity-20 transition cursor-pointer"
                     >
                       <ArrowDown className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => handleRemove(item.id)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-slate-800 transition cursor-pointer"
+                      className="p-1 rounded text-zinc-400 hover:text-rose-400 hover:bg-surface-50 transition cursor-pointer"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -251,18 +250,15 @@ export function ImageToPdfView() {
             <button
               onClick={handleConvert}
               disabled={isProcessing || images.length === 0}
-              className="w-full py-3.5 rounded-xl bg-gradient-to-r from-purple-600 via-pink-600 to-indigo-600 hover:opacity-90 text-white font-bold text-sm transition shadow-glow-purple disabled:opacity-40 flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle mt-2"
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Membuat File PDF...</span>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Compiling PDF...</span>
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Konversi {images.length} Gambar Menjadi 1 PDF</span>
-                </>
+                <span>Compile {images.length} Images into 1 PDF</span>
               )}
             </button>
           </div>
@@ -276,14 +272,14 @@ export function ImageToPdfView() {
           onClose={() => setShowResultModal(false)}
           onDownload={() => downloadUint8Array(resultBytes, resultFilename)}
           onReset={handleReset}
-          title="PDF dari Gambar Berhasil Dibuat!"
+          title="PDF compiled successfully"
           filename={resultFilename}
           fileSize={resultBytes.byteLength}
           stats={[
-            { label: 'Jumlah Gambar', value: `${images.length} halaman` },
-            { label: 'Ukuran Kertas', value: 'A4' },
+            { label: 'Images included', value: `${images.length} pages` },
+            { label: 'Page size', value: 'A4 Standard' },
           ]}
-          downloadLabel="Unduh Dokumen PDF"
+          downloadLabel="Download Compiled PDF"
         />
       )}
     </div>

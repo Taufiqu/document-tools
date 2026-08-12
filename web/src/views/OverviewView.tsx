@@ -118,10 +118,19 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
     <div className="space-y-10 pb-12">
       {/* Editorial Headline */}
       <section className="pt-4 pb-2 space-y-3 max-w-3xl">
-        <div className="flex items-center gap-2 text-zinc-400 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-2 text-zinc-400 text-xs font-mono">
           <span>WORKSPACE</span>
           <span>/</span>
           <span>DOCUMENT & IMAGE TOOLS</span>
+          <span>/</span>
+          <a
+            href="https://taufiqu.vercel.app/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-zinc-300 hover:text-emerald-400 transition"
+          >
+            BY TAUFIQU
+          </a>
         </div>
 
         <h1 className="text-2xl sm:text-4xl font-semibold tracking-tight text-white leading-tight">

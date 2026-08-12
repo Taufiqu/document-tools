@@ -84,16 +84,52 @@ export function App() {
         </Suspense>
       </main>
 
-      {/* Editorial Minimal Footer */}
-      <footer className="border-t border-border py-5 text-xs text-zinc-500">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <p className="font-mono text-[11px]">DocuCraft — Client-Side Studio</p>
-          <div className="flex items-center gap-3 text-[11px] font-mono text-zinc-500">
-            <span>RAM-Based</span>
-            <span>/</span>
-            <span>Zero-Upload</span>
-            <span>/</span>
-            <span>Dual-Deployment</span>
+      {/* Editorial Minimal Footer with Creator Credit */}
+      <footer className="border-t border-border py-6 text-xs text-zinc-500 bg-surface-200/50">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+            <span className="font-mono text-white text-[11px] font-medium">DocuCraft Studio</span>
+            <span className="hidden sm:inline text-zinc-600">•</span>
+            <p className="text-[11px] text-zinc-400">
+              Designed & Engineered by{' '}
+              <a
+                href="https://taufiqu.vercel.app/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-white hover:text-emerald-400 font-medium underline underline-offset-2 transition"
+              >
+                Taufiqu
+              </a>
+            </p>
+          </div>
+
+          <div className="flex items-center gap-4 text-[11px] font-mono">
+            <a
+              href="https://taufiqu.vercel.app/"
+              target="_blank"
+              rel="noreferrer"
+              className="text-zinc-400 hover:text-white transition"
+            >
+              Portfolio
+            </a>
+            <span className="text-zinc-700">/</span>
+            <a
+              href="https://github.com/Taufiqu"
+              target="_blank"
+              rel="noreferrer"
+              className="text-zinc-400 hover:text-white transition"
+            >
+              GitHub
+            </a>
+            <span className="text-zinc-700">/</span>
+            <a
+              href="https://github.com/Taufiqu/document-tools"
+              target="_blank"
+              rel="noreferrer"
+              className="text-zinc-400 hover:text-white transition"
+            >
+              Source
+            </a>
           </div>
         </div>
       </footer>

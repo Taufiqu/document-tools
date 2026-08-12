@@ -161,11 +161,48 @@ export async function openGooglePicker(
 }
 
 /**
+ * Parses Google Drive Link or File/Folder ID.
+ */
+export function parseGoogleDriveLink(inputUrl: string): {
+  type: 'folder' | 'file' | 'unknown';
+  id: string;
+} | null {
+  const url = inputUrl.trim();
+  if (!url) return null;
+
+  // Folder Match: https://drive.google.com/drive/folders/1aBcDeF...
+  const folderMatch = url.match(/\/folders\/([a-zA-Z0-9_-]{20,})/);
+  if (folderMatch) {
+    return { type: 'folder', id: folderMatch[1] };
+  }
+
+  // File Match: https://drive.google.com/file/d/1aBcDeF...
+  const fileMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]{20,})/);
+  if (fileMatch) {
+    return { type: 'file', id: fileMatch[1] };
+  }
+
+  // Query Param Match: ?id=1aBcDeF...
+  const queryMatch = url.match(/[?&]id=([a-zA-Z0-9_-]{20,})/);
+  if (queryMatch) {
+    return { type: 'file', id: queryMatch[1] };
+  }
+
+  // Raw ID match
+  if (/^[a-zA-Z0-9_-]{25,}$/.test(url)) {
+    return { type: 'unknown', id: url };
+  }
+
+  return null;
+}
+
+/**
  * Recursively lists files in a Google Drive folder.
  */
 export async function listFilesInDriveFolder(
   folderId: string,
-  accessToken: string,
+  apiKey: string,
+  accessToken?: string,
   mimeFilter?: string
 ): Promise<GoogleDriveSelectedDoc[]> {
   let query = `'${folderId}' in parents and trashed = false`;
@@ -175,16 +212,20 @@ export async function listFilesInDriveFolder(
 
   const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
     query
-  )}&fields=files(id,name,mimeType,size)&pageSize=100`;
+  )}&fields=files(id,name,mimeType,size)&pageSize=100&key=${apiKey}`;
 
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
 
+  const res = await fetch(url, { headers });
   if (!res.ok) {
-    throw new Error(`Failed to list folder contents: ${res.statusText}`);
+    const errJson = await res.json().catch(() => ({}));
+    throw new Error(
+      errJson?.error?.message ||
+        `Failed to access Google Drive folder (${res.status}). Ensure the link sharing is set to 'Anyone with the link can view'.`
+    );
   }
 
   const data = await res.json();
@@ -192,7 +233,7 @@ export async function listFilesInDriveFolder(
 
   for (const item of data.files || []) {
     if (item.mimeType === 'application/vnd.google-apps.folder') {
-      const subFiles = await listFilesInDriveFolder(item.id, accessToken, mimeFilter);
+      const subFiles = await listFilesInDriveFolder(item.id, apiKey, accessToken, mimeFilter);
       files.push(...subFiles);
     } else {
       files.push({
@@ -214,17 +255,20 @@ export async function downloadDriveFile(
   fileId: string,
   fileName: string,
   mimeType: string,
-  accessToken: string
+  apiKey: string,
+  accessToken?: string
 ): Promise<File> {
-  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
-  const response = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
+  const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
 
+  const response = await fetch(url, { headers });
   if (!response.ok) {
-    throw new Error(`Failed to download ${fileName} from Google Drive: ${response.statusText}`);
+    throw new Error(
+      `Failed to download ${fileName} from Google Drive. Ensure the file sharing is set to 'Anyone with the link can view'.`
+    );
   }
 
   const blob = await response.blob();
@@ -232,11 +276,12 @@ export async function downloadDriveFile(
 }
 
 /**
- * Batch downloads selected Google Drive items (including folders) into in-memory File objects.
+ * Batch downloads selected Google Drive items into in-memory File objects.
  */
 export async function fetchDriveFilesIntoMemory(
   selectedDocs: GoogleDriveSelectedDoc[],
-  accessToken: string,
+  apiKey: string,
+  accessToken?: string,
   mimeFilter?: string,
   onProgress?: (current: number, total: number, currentName: string) => void
 ): Promise<File[]> {
@@ -245,7 +290,7 @@ export async function fetchDriveFilesIntoMemory(
   // Expand folders
   for (const doc of selectedDocs) {
     if (doc.mimeType === 'application/vnd.google-apps.folder') {
-      const folderFiles = await listFilesInDriveFolder(doc.id, accessToken, mimeFilter);
+      const folderFiles = await listFilesInDriveFolder(doc.id, apiKey, accessToken, mimeFilter);
       filesToDownload.push(...folderFiles);
     } else {
       filesToDownload.push(doc);
@@ -265,9 +310,70 @@ export async function fetchDriveFilesIntoMemory(
     if (onProgress) {
       onProgress(i + 1, total, item.name);
     }
-    const file = await downloadDriveFile(item.id, item.name, item.mimeType, accessToken);
+    const file = await downloadDriveFile(item.id, item.name, item.mimeType, apiKey, accessToken);
     downloadedFiles.push(file);
   }
 
   return downloadedFiles;
+}
+
+/**
+ * Imports files directly from a Google Drive File or Folder URL.
+ */
+export async function importFromDriveUrl(
+  inputUrl: string,
+  apiKey: string,
+  accessToken?: string,
+  mimeFilter?: string,
+  onProgress?: (current: number, total: number, currentName: string) => void
+): Promise<File[]> {
+  const parsed = parseGoogleDriveLink(inputUrl);
+  if (!parsed) {
+    throw new Error('Invalid Google Drive link. Please paste a valid file or folder URL.');
+  }
+
+  // Check if it's a folder or file by attempting metadata fetch
+  if (parsed.type === 'folder') {
+    const files = await listFilesInDriveFolder(parsed.id, apiKey, accessToken, mimeFilter);
+    if (files.length === 0) {
+      throw new Error('No compatible files found in this Google Drive folder.');
+    }
+    return await fetchDriveFilesIntoMemory(files, apiKey, accessToken, mimeFilter, onProgress);
+  }
+
+  // File metadata check
+  const metaUrl = `https://www.googleapis.com/drive/v3/files/${parsed.id}?fields=id,name,mimeType,size&key=${apiKey}`;
+  const headers: HeadersInit = {};
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`;
+  }
+
+  const res = await fetch(metaUrl, { headers });
+  if (!res.ok) {
+    // Fallback: try folder if type was unknown
+    if (parsed.type === 'unknown') {
+      try {
+        const folderFiles = await listFilesInDriveFolder(parsed.id, apiKey, accessToken, mimeFilter);
+        if (folderFiles.length > 0) {
+          return await fetchDriveFilesIntoMemory(folderFiles, apiKey, accessToken, mimeFilter, onProgress);
+        }
+      } catch {}
+    }
+    throw new Error(
+      `Could not retrieve Google Drive file details (${res.status}). Ensure the link sharing is set to 'Anyone with the link can view'.`
+    );
+  }
+
+  const meta = await res.json();
+  if (meta.mimeType === 'application/vnd.google-apps.folder') {
+    const folderFiles = await listFilesInDriveFolder(meta.id, apiKey, accessToken, mimeFilter);
+    return await fetchDriveFilesIntoMemory(folderFiles, apiKey, accessToken, mimeFilter, onProgress);
+  }
+
+  if (onProgress) {
+    onProgress(1, 1, meta.name);
+  }
+
+  const file = await downloadDriveFile(meta.id, meta.name, meta.mimeType, apiKey, accessToken);
+  return [file];
 }

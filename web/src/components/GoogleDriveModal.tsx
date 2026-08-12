@@ -9,6 +9,8 @@ import {
   AlertCircle,
   FolderUp,
   Settings,
+  Link as LinkIcon,
+  DownloadCloud,
 } from 'lucide-react';
 import {
   getSavedGoogleConfig,
@@ -17,6 +19,7 @@ import {
   requestGoogleAccessToken,
   openGooglePicker,
   fetchDriveFilesIntoMemory,
+  importFromDriveUrl,
 } from '@/lib/google-drive';
 
 interface GoogleDriveModalProps {
@@ -26,12 +29,17 @@ interface GoogleDriveModalProps {
   acceptMimeType?: string; // e.g. 'application/pdf'
 }
 
+type ActiveTab = 'link' | 'picker';
+
 export function GoogleDriveModal({
   isOpen,
   onClose,
   onFilesImported,
   acceptMimeType = 'application/pdf',
 }: GoogleDriveModalProps) {
+  const [activeTab, setActiveTab] = useState<ActiveTab>('link');
+  const [driveUrl, setDriveUrl] = useState('');
+
   const [clientId, setClientId] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showConfig, setShowConfig] = useState(false);
@@ -48,8 +56,9 @@ export function GoogleDriveModal({
       setErrorMessage('');
       setStatusMessage('');
       setIsLoading(false);
-      // Only show config form if both keys are completely missing
-      if (!saved.clientId || !saved.apiKey) {
+      setDriveUrl('');
+      // If no API key configured, show config
+      if (!saved.apiKey) {
         setShowConfig(true);
       } else {
         setShowConfig(false);
@@ -59,6 +68,50 @@ export function GoogleDriveModal({
 
   if (!isOpen) return null;
 
+  // 1. Handle Import from Direct Link (File or Folder)
+  const handleImportByUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!driveUrl.trim()) return;
+
+    const currentConfig = getSavedGoogleConfig();
+    const effectiveApiKey = apiKey.trim() || currentConfig.apiKey;
+
+    if (!effectiveApiKey) {
+      setShowConfig(true);
+      setErrorMessage('Google API Key is required to fetch files.');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+    setStatusMessage('Resolving Google Drive link...');
+
+    try {
+      saveGoogleConfig({ clientId, apiKey: effectiveApiKey });
+      const downloaded = await importFromDriveUrl(
+        driveUrl,
+        effectiveApiKey,
+        undefined,
+        acceptMimeType,
+        (curr, total, name) => {
+          setStatusMessage(`Downloading file ${curr} of ${total}: ${name}`);
+        }
+      );
+
+      setIsLoading(false);
+      onFilesImported(downloaded);
+      onClose();
+    } catch (err: any) {
+      console.error('Link import error:', err);
+      setErrorMessage(
+        err?.message ||
+          'Failed to import from link. Make sure the file or folder is set to "Anyone with the link can view".'
+      );
+      setIsLoading(false);
+    }
+  };
+
+  // 2. Handle Browse with Google Picker
   const handleStartDrivePicker = async () => {
     const currentConfig = getSavedGoogleConfig();
     const effectiveClientId = clientId.trim() || currentConfig.clientId;
@@ -100,6 +153,7 @@ export function GoogleDriveModal({
       setStatusMessage(`Found ${pickedDocs.length} item(s). Streaming directly into RAM...`);
       const downloadedFiles = await fetchDriveFilesIntoMemory(
         pickedDocs,
+        effectiveApiKey,
         accessToken,
         acceptMimeType,
         (curr, total, name) => {
@@ -115,7 +169,7 @@ export function GoogleDriveModal({
       setErrorMessage(
         err?.message ||
           err?.details ||
-          'Failed to connect to Google Drive. Please ensure your domain/localhost is added to Authorized JavaScript Origins in Google Cloud Console.'
+          'Failed to connect to Google Drive. Please ensure your domain/localhost is added to Authorized JavaScript Origins.'
       );
       setIsLoading(false);
     }
@@ -139,8 +193,8 @@ export function GoogleDriveModal({
             <HardDrive className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white">Google Drive Cloud Import</h3>
-            <p className="text-xs text-zinc-400">Stream documents directly into browser memory</p>
+            <h3 className="text-sm font-semibold text-white">Import from Google Drive</h3>
+            <p className="text-xs text-zinc-400">Stream documents and entire folders directly to RAM</p>
           </div>
         </div>
 
@@ -161,33 +215,102 @@ export function GoogleDriveModal({
             )}
 
             {!showConfig ? (
-              <div className="space-y-3.5">
-                <div className="p-3.5 rounded-lg bg-surface-100 border border-border text-xs space-y-2">
-                  <div className="flex items-center gap-2 text-white font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Official Google Drive Integration Connected</span>
-                  </div>
-                  <p className="text-zinc-400 text-[11px] leading-relaxed">
-                    Pick single files or choose entire folders. Files will be downloaded directly to your computer's RAM and naturally sorted for processing.
-                  </p>
+              <div className="space-y-4">
+                {/* Tabs */}
+                <div className="grid grid-cols-2 gap-1 p-1 rounded-lg bg-surface-100 border border-border text-xs">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('link')}
+                    className={`py-1.5 rounded-md font-medium transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeTab === 'link'
+                        ? 'bg-zinc-800 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <LinkIcon className="w-3.5 h-3.5" />
+                    <span>Paste Link / URL</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('picker')}
+                    className={`py-1.5 rounded-md font-medium transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                      activeTab === 'picker'
+                        ? 'bg-zinc-800 text-white shadow-sm'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <FolderUp className="w-3.5 h-3.5" />
+                    <span>Browse Drive</span>
+                  </button>
                 </div>
 
-                <button
-                  onClick={handleStartDrivePicker}
-                  className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle"
-                >
-                  <FolderUp className="w-4 h-4" />
-                  <span>Choose Files / Folders from Google Drive</span>
-                </button>
+                {/* Tab 1: Paste Link */}
+                {activeTab === 'link' && (
+                  <form onSubmit={handleImportByUrl} className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-medium text-zinc-300 block">
+                        Google Drive File or Folder Link
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="url"
+                          value={driveUrl}
+                          onChange={(e) => setDriveUrl(e.target.value)}
+                          placeholder="https://drive.google.com/drive/folders/... or file/d/..."
+                          className="w-full px-3 py-2 text-xs rounded-lg bg-surface-100 border border-border text-white placeholder:text-zinc-500 focus:outline-none focus:border-zinc-400"
+                          autoFocus
+                          required
+                        />
+                      </div>
+                      <p className="text-[10px] text-zinc-400 leading-relaxed">
+                        Pastikan link diset ke <span className="text-zinc-200">"Anyone with the link can view"</span> (Siapa saja yang memiliki link).
+                      </p>
+                    </div>
 
-                <div className="pt-2 flex justify-between items-center text-[11px] text-zinc-500">
-                  <span className="font-mono text-[10px]">Google Cloud OAuth 2.0 GIS</span>
+                    <button
+                      type="submit"
+                      disabled={!driveUrl.trim()}
+                      className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle disabled:opacity-40"
+                    >
+                      <DownloadCloud className="w-4 h-4" />
+                      <span>Fetch & Import into RAM</span>
+                    </button>
+                  </form>
+                )}
+
+                {/* Tab 2: Google Picker */}
+                {activeTab === 'picker' && (
+                  <div className="space-y-3">
+                    <div className="p-3 rounded-lg bg-surface-100 border border-border text-xs space-y-1.5">
+                      <div className="flex items-center gap-2 text-white font-medium">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>Interactive Google Drive Picker</span>
+                      </div>
+                      <p className="text-zinc-400 text-[11px] leading-relaxed">
+                        Opens a pop-up window connected directly to your Google account to browse and pick documents or folders.
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleStartDrivePicker}
+                      className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle"
+                    >
+                      <FolderUp className="w-4 h-4" />
+                      <span>Open Google Drive Window</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="pt-1 flex justify-between items-center text-[11px] text-zinc-500">
+                  <span className="font-mono text-[10px]">100% Client-Side Direct Memory</span>
                   <button
                     onClick={() => setShowConfig(true)}
                     className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
                   >
                     <Settings className="w-3 h-3" />
-                    <span>Custom Credentials</span>
+                    <span>Credentials</span>
                   </button>
                 </div>
               </div>
@@ -210,7 +333,7 @@ export function GoogleDriveModal({
                 </div>
 
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  Provide your OAuth 2.0 Web Client ID and Google Picker API Key. (Credentials are stored locally in your browser memory).
+                  Provide your OAuth 2.0 Web Client ID and Google API Key.
                 </p>
 
                 <div className="space-y-1">
@@ -237,10 +360,13 @@ export function GoogleDriveModal({
 
                 <div className="pt-2 flex gap-2">
                   <button
-                    onClick={handleStartDrivePicker}
+                    onClick={() => {
+                      saveGoogleConfig({ clientId, apiKey });
+                      setShowConfig(false);
+                    }}
                     className="flex-1 py-2 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle"
                   >
-                    <span>Save & Connect Drive</span>
+                    <span>Save Credentials</span>
                   </button>
 
                   <button

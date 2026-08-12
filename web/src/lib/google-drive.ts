@@ -84,7 +84,7 @@ export function requestGoogleAccessToken(clientId: string): Promise<string> {
 
     const tokenClient = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
-      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly',
       callback: (response: any) => {
         if (response.error !== undefined) {
           reject(response);

@@ -1,5 +1,6 @@
 import { PDFDocument, PageSizes } from 'pdf-lib';
 import JSZip from 'jszip';
+import { ScanFilterType, ScanFilterOptions, processImageFileWithFilter } from './scan-engine';
 
 export interface CompressedImageResult {
   blob: Blob;
@@ -142,30 +143,48 @@ export async function compressImage(
 }
 
 export interface ImageToPdfOptions {
-  pageSize?: 'A4' | 'Letter';
+  pageSize?: 'A4' | 'Letter' | 'F4' | 'Fit';
   orientation?: 'portrait' | 'landscape' | 'auto';
   margin?: number; // points
+  scanFilter?: ScanFilterType;
+  filterOptions?: ScanFilterOptions;
 }
 
 /**
- * Compiles multiple raster image files into a multi-page PDF document.
+ * Compiles multiple raster image files into a multi-page PDF document with realistic scan filters.
  */
 export async function imagesToPdf(
   files: File[],
   options: ImageToPdfOptions = {}
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
-  const margin = options.margin ?? 20;
+  const margin = options.pageSize === 'Fit' ? 0 : options.margin ?? 20;
 
   for (const file of files) {
-    const arrayBuffer = await file.arrayBuffer();
-    const bytes = new Uint8Array(arrayBuffer);
+    let imageBytes: Uint8Array;
+    let isPng = false;
+
+    if (options.scanFilter && options.scanFilter !== 'original') {
+      // Process through realistic scan filter engine
+      const processed = await processImageFileWithFilter(
+        file,
+        options.scanFilter,
+        options.filterOptions
+      );
+      const buffer = await processed.blob.arrayBuffer();
+      imageBytes = new Uint8Array(buffer);
+      isPng = false; // scan engine outputs JPEG
+    } else {
+      const arrayBuffer = await file.arrayBuffer();
+      imageBytes = new Uint8Array(arrayBuffer);
+      isPng = file.type === 'image/png' || file.name.toLowerCase().endsWith('.png');
+    }
 
     let embeddedImage;
-    if (file.type === 'image/png' || file.name.toLowerCase().endsWith('.png')) {
-      embeddedImage = await pdfDoc.embedPng(bytes);
+    if (isPng) {
+      embeddedImage = await pdfDoc.embedPng(imageBytes);
     } else {
-      embeddedImage = await pdfDoc.embedJpg(bytes);
+      embeddedImage = await pdfDoc.embedJpg(imageBytes);
     }
 
     const { width: imgWidth, height: imgHeight } = embeddedImage;
@@ -179,12 +198,29 @@ export async function imagesToPdf(
       isLandscape = imgWidth > imgHeight;
     }
 
-    const [baseW, baseH] = options.pageSize === 'Letter' ? PageSizes.Letter : PageSizes.A4;
-    const pageWidth = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
-    const pageHeight = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
+    let pageWidth = imgWidth;
+    let pageHeight = imgHeight;
 
-    const printableW = pageWidth - margin * 2;
-    const printableH = pageHeight - margin * 2;
+    if (options.pageSize === 'Letter') {
+      const [baseW, baseH] = PageSizes.Letter;
+      pageWidth = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
+      pageHeight = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
+    } else if (options.pageSize === 'F4') {
+      const [baseW, baseH] = [609.45, 935.43]; // F4 Folio points (215 x 330 mm)
+      pageWidth = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
+      pageHeight = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
+    } else if (options.pageSize === 'Fit') {
+      pageWidth = imgWidth;
+      pageHeight = imgHeight;
+    } else {
+      // Default: A4
+      const [baseW, baseH] = PageSizes.A4;
+      pageWidth = isLandscape ? Math.max(baseW, baseH) : Math.min(baseW, baseH);
+      pageHeight = isLandscape ? Math.min(baseW, baseH) : Math.max(baseW, baseH);
+    }
+
+    const printableW = Math.max(10, pageWidth - margin * 2);
+    const printableH = Math.max(10, pageHeight - margin * 2);
 
     const scale = Math.min(printableW / imgWidth, printableH / imgHeight, 1);
     const drawW = imgWidth * scale;

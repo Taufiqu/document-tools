@@ -3,7 +3,8 @@ import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
 import { fileToUint8Array, downloadUint8Array, formatBytes } from '@/lib/utils';
 import { mergePdfs, getPdfPageCount, TargetPaperSize } from '@/lib/pdf-engine';
-import { Layers, ArrowUp, ArrowDown, Trash2, Loader2, Sliders } from 'lucide-react';
+import { Layers, ArrowUp, ArrowDown, Trash2, Loader2, Sliders, ArrowDownAZ } from 'lucide-react';
+import { naturalSortFiles } from '@/lib/folder-scanner';
 
 interface MergeFileItem {
   id: string;
@@ -44,7 +45,11 @@ export function MergeView() {
       }
     }
 
-    setItems((prev) => [...prev, ...newItems]);
+    setItems((prev) => naturalSortFiles([...prev, ...newItems]));
+  };
+
+  const handleSortAZ = () => {
+    setItems((prev) => naturalSortFiles(prev));
   };
 
   const handleMoveUp = (index: number) => {
@@ -112,7 +117,7 @@ export function MergeView() {
         </div>
         <h1 className="text-xl sm:text-2xl font-semibold text-white">Merge PDF Documents</h1>
         <p className="text-xs sm:text-sm text-zinc-400">
-          Combine multiple PDF files in RAM with optional uniform paper sizing.
+          Combine multiple PDF files or entire folders from your local disk or Google Drive in RAM.
         </p>
       </div>
 
@@ -120,8 +125,10 @@ export function MergeView() {
         onFilesSelected={handleFilesSelected}
         multiple={true}
         accept="application/pdf"
-        title="Select or drop PDF files to merge"
-        subtitle="Choose multiple files to concatenate into a single document"
+        title="Select or drop PDF files / folders to merge"
+        subtitle="Choose multiple files or an entire folder from local storage or Google Drive"
+        enableFolderUpload={true}
+        enableGoogleDrive={true}
       />
 
       {/* Selected Items Reorder List */}
@@ -138,13 +145,24 @@ export function MergeView() {
                 </p>
               </div>
 
-              <button
-                onClick={handleClearAll}
-                className="text-xs text-zinc-400 hover:text-rose-400 transition flex items-center gap-1 cursor-pointer"
-              >
-                <Trash2 className="w-3 h-3" />
-                <span>Clear</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleSortAZ}
+                  className="text-xs text-zinc-400 hover:text-white px-2 py-1 rounded bg-surface-100 border border-border flex items-center gap-1.5 transition cursor-pointer"
+                  title="Sort naturally by file name (1.pdf, 2.pdf, 10.pdf)"
+                >
+                  <ArrowDownAZ className="w-3.5 h-3.5" />
+                  <span>Sort A-Z</span>
+                </button>
+
+                <button
+                  onClick={handleClearAll}
+                  className="text-xs text-zinc-400 hover:text-rose-400 px-2 py-1 transition flex items-center gap-1 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clear</span>
+                </button>
+              </div>
             </div>
 
             <div className="space-y-1.5">

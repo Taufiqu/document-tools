@@ -1,6 +1,7 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Navbar } from './components/Navbar';
 import { Loader2 } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
 
 // Lazy load view components for optimal bundle splitting and performance
 const OverviewView = lazy(() => import('./views/OverviewView').then((m) => ({ default: m.OverviewView })));
@@ -135,6 +136,9 @@ export function App() {
           </div>
         </div>
       </footer>
+
+      {/* Vercel Web Analytics */}
+      <Analytics />
     </div>
   );
 }

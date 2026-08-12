@@ -52,10 +52,14 @@ tmp_*
 # Node / Web SPA
 web/node_modules/
 web/dist/
-web/.next/
 web/out/
 .vercel/
 *.tsbuildinfo
+.env
+.env.local
+web/.env
+web/.env.local
+
 
 # OS & IDE
 .DS_Store

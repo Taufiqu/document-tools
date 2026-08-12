@@ -8,6 +8,7 @@ import {
   CheckCircle2,
   AlertCircle,
   FolderUp,
+  Settings,
 } from 'lucide-react';
 import {
   getSavedGoogleConfig,
@@ -44,21 +45,26 @@ export function GoogleDriveModal({
       const saved = getSavedGoogleConfig();
       setClientId(saved.clientId);
       setApiKey(saved.apiKey);
+      setErrorMessage('');
+      setStatusMessage('');
+      setIsLoading(false);
+      // Only show config form if both keys are completely missing
       if (!saved.clientId || !saved.apiKey) {
         setShowConfig(true);
+      } else {
+        setShowConfig(false);
       }
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSaveConfig = () => {
-    saveGoogleConfig({ clientId, apiKey });
-    setShowConfig(false);
-  };
-
   const handleStartDrivePicker = async () => {
-    if (!clientId.trim() || !apiKey.trim()) {
+    const currentConfig = getSavedGoogleConfig();
+    const effectiveClientId = clientId.trim() || currentConfig.clientId;
+    const effectiveApiKey = apiKey.trim() || currentConfig.apiKey;
+
+    if (!effectiveClientId || !effectiveApiKey) {
       setShowConfig(true);
       setErrorMessage('Google Client ID and API Key are required.');
       return;
@@ -66,20 +72,24 @@ export function GoogleDriveModal({
 
     setIsLoading(true);
     setErrorMessage('');
-    setStatusMessage('Initializing Google Identity Services...');
+    setStatusMessage('Connecting to Google Identity Services...');
 
     try {
-      saveGoogleConfig({ clientId, apiKey });
+      saveGoogleConfig({ clientId: effectiveClientId, apiKey: effectiveApiKey });
       await loadGoogleScripts();
 
-      setStatusMessage('Authenticating with Google Account...');
-      const accessToken = await requestGoogleAccessToken(clientId);
+      setStatusMessage('Waiting for Google Account authorization...');
+      const accessToken = await requestGoogleAccessToken(effectiveClientId);
 
       setStatusMessage('Opening Google Drive Picker...');
-      const pickedDocs = await openGooglePicker({ clientId, apiKey }, accessToken, {
-        mimeTypeFilter: acceptMimeType,
-        title: 'Select PDF files or folders from Google Drive',
-      });
+      const pickedDocs = await openGooglePicker(
+        { clientId: effectiveClientId, apiKey: effectiveApiKey },
+        accessToken,
+        {
+          mimeTypeFilter: acceptMimeType,
+          title: 'Select PDF files or folders from Google Drive',
+        }
+      );
 
       if (pickedDocs.length === 0) {
         setIsLoading(false);
@@ -87,7 +97,7 @@ export function GoogleDriveModal({
         return;
       }
 
-      setStatusMessage(`Found ${pickedDocs.length} items. Streaming into RAM...`);
+      setStatusMessage(`Found ${pickedDocs.length} item(s). Streaming directly into RAM...`);
       const downloadedFiles = await fetchDriveFilesIntoMemory(
         pickedDocs,
         accessToken,
@@ -105,7 +115,7 @@ export function GoogleDriveModal({
       setErrorMessage(
         err?.message ||
           err?.details ||
-          'Failed to connect to Google Drive. Check your Client ID, API Key, and authorized origins.'
+          'Failed to connect to Google Drive. Please ensure your domain/localhost is added to Authorized JavaScript Origins in Google Cloud Console.'
       );
       setIsLoading(false);
     }
@@ -129,8 +139,8 @@ export function GoogleDriveModal({
             <HardDrive className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-white">Import from Google Drive</h3>
-            <p className="text-xs text-zinc-400">Stream files and folders directly to RAM without server upload</p>
+            <h3 className="text-sm font-semibold text-white">Google Drive Cloud Import</h3>
+            <p className="text-xs text-zinc-400">Stream documents directly into browser memory</p>
           </div>
         </div>
 
@@ -151,14 +161,14 @@ export function GoogleDriveModal({
             )}
 
             {!showConfig ? (
-              <div className="space-y-3">
+              <div className="space-y-3.5">
                 <div className="p-3.5 rounded-lg bg-surface-100 border border-border text-xs space-y-2">
                   <div className="flex items-center gap-2 text-white font-medium">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>Direct In-Memory Drive Integration</span>
+                    <span>Official Google Drive Integration Connected</span>
                   </div>
                   <p className="text-zinc-400 text-[11px] leading-relaxed">
-                    You can pick single PDF documents or entire Google Drive folders. All files will be fetched directly into your browser's RAM memory and sorted naturally.
+                    Pick single files or choose entire folders. Files will be downloaded directly to your computer's RAM and naturally sorted for processing.
                   </p>
                 </div>
 
@@ -167,16 +177,17 @@ export function GoogleDriveModal({
                   className="w-full py-2.5 btn-primary text-xs flex items-center justify-center gap-2 cursor-pointer shadow-subtle"
                 >
                   <FolderUp className="w-4 h-4" />
-                  <span>Open Google Drive Picker</span>
+                  <span>Choose Files / Folders from Google Drive</span>
                 </button>
 
                 <div className="pt-2 flex justify-between items-center text-[11px] text-zinc-500">
-                  <span>Using configured Google OAuth credentials</span>
+                  <span className="font-mono text-[10px]">Google Cloud OAuth 2.0 GIS</span>
                   <button
                     onClick={() => setShowConfig(true)}
-                    className="text-zinc-400 hover:text-white underline cursor-pointer"
+                    className="text-zinc-400 hover:text-white flex items-center gap-1 cursor-pointer"
                   >
-                    Edit API Keys
+                    <Settings className="w-3 h-3" />
+                    <span>Custom Credentials</span>
                   </button>
                 </div>
               </div>
@@ -199,7 +210,7 @@ export function GoogleDriveModal({
                 </div>
 
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  To securely access your Google Drive from the browser, provide a standard Google OAuth 2.0 Web Client ID and Google Picker API Key (enabled in Google Cloud Console with your domain / localhost in Authorized JavaScript Origins).
+                  Provide your OAuth 2.0 Web Client ID and Google Picker API Key. (Credentials are stored locally in your browser memory).
                 </p>
 
                 <div className="space-y-1">
@@ -208,7 +219,7 @@ export function GoogleDriveModal({
                     type="text"
                     value={clientId}
                     onChange={(e) => setClientId(e.target.value)}
-                    placeholder="xxxx-xxxx.apps.googleusercontent.com"
+                    placeholder="xxxx.apps.googleusercontent.com"
                     className="w-full px-3 py-2 rounded-lg bg-surface-100 border border-border text-white text-xs font-mono focus:outline-none focus:border-zinc-400"
                   />
                 </div>

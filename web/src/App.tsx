@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 
 // Lazy load view components for optimal bundle splitting and performance
 const OverviewView = lazy(() => import('./views/OverviewView').then((m) => ({ default: m.OverviewView })));
+const CamScannerView = lazy(() => import('./views/CamScannerView').then((m) => ({ default: m.CamScannerView })));
 const OrganizerView = lazy(() => import('./views/OrganizerView').then((m) => ({ default: m.OrganizerView })));
 const MergeView = lazy(() => import('./views/MergeView').then((m) => ({ default: m.MergeView })));
 const SplitView = lazy(() => import('./views/SplitView').then((m) => ({ default: m.SplitView })));
@@ -68,6 +69,7 @@ export function App() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
         <Suspense fallback={<ViewFallback />}>
           {currentTool === 'overview' && <OverviewView onSelectTool={handleSelectTool} />}
+          {currentTool === 'scanner' && <CamScannerView />}
           {currentTool === 'organizer' && <OrganizerView />}
           {currentTool === 'merge' && <MergeView />}
           {currentTool === 'split' && <SplitView />}

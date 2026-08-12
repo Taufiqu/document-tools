@@ -22,6 +22,13 @@ interface OverviewViewProps {
 export function OverviewView({ onSelectTool }: OverviewViewProps) {
   const tools = [
     {
+      id: 'scanner',
+      title: 'Cam Scanner',
+      description: 'Capture documents with your camera, auto-detect corners, warp perspective, and apply scan filters.',
+      icon: Camera,
+      tag: 'Camera AI',
+    },
+    {
       id: 'organizer',
       title: 'Page Organizer',
       description: 'Reorder, rotate degrees, and remove unwanted pages with visual canvas previews.',

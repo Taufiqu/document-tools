@@ -29,6 +29,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
 
   const navItems = [
     { id: 'overview', label: 'Overview', icon: Grid },
+    { id: 'scanner', label: 'Cam Scanner', icon: Camera },
     { id: 'organizer', label: 'Organizer', icon: FileText },
     { id: 'merge', label: 'Merge', icon: Layers },
     { id: 'split', label: 'Split', icon: Scissors },

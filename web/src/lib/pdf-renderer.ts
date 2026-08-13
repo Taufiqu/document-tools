@@ -65,16 +65,34 @@ export async function renderPdfPageToDataUrl(
   return createFallbackPageThumbnail(pageNumber);
 }
 
+export interface RenderedPdfImage {
+  pageNumber: number;
+  blob: Blob;
+  dataUrl: string;
+  filename: string;
+  width: number;
+  height: number;
+}
+
+export interface RenderPdfToImagesResult {
+  images: RenderedPdfImage[];
+  zipBlob: Blob;
+  zipFilename: string;
+  isSinglePage: boolean;
+  singleImageBlob?: Blob;
+  singleImageFilename?: string;
+}
+
 /**
- * Renders all pages of a PDF into high-definition images and packages them into a ZIP blob.
+ * Renders all pages of a PDF into high-definition images, providing direct single-image access and ZIP packaging.
  */
-export async function renderPdfPagesToImagesZip(
+export async function renderPdfPagesToImages(
   pdfData: Uint8Array,
   format: ImageExportFormat = 'png',
   scale = 2.0,
   baseName = 'document',
   onProgress?: (current: number, total: number) => void
-): Promise<Blob> {
+): Promise<RenderPdfToImagesResult> {
   const pdfjs = await getPdfJs();
   if (!pdfjs || !pdfjs.getDocument) {
     throw new Error('PDF Rendering engine could not be initialized.');
@@ -88,6 +106,8 @@ export async function renderPdfPagesToImagesZip(
   const zip = new JSZip();
   const mimeType = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : 'image/png';
   const ext = format === 'jpeg' ? 'jpg' : format;
+
+  const images: RenderedPdfImage[] = [];
 
   for (let i = 1; i <= totalPages; i++) {
     if (onProgress) {
@@ -115,15 +135,51 @@ export async function renderPdfPagesToImagesZip(
       viewport: viewport,
     }).promise;
 
+    const dataUrl = canvas.toDataURL(mimeType, 0.92);
     const blob: Blob = await new Promise((resolve) => {
       canvas.toBlob((b) => resolve(b || new Blob()), mimeType, 0.92);
     });
 
     const pageNumStr = String(i).padStart(String(totalPages).length, '0');
-    zip.file(`${baseName}_page_${pageNumStr}.${ext}`, blob);
+    const filename = totalPages === 1 ? `${baseName}.${ext}` : `${baseName}_page_${pageNumStr}.${ext}`;
+
+    images.push({
+      pageNumber: i,
+      blob,
+      dataUrl,
+      filename,
+      width: canvas.width,
+      height: canvas.height,
+    });
+
+    zip.file(filename, blob);
   }
 
-  return await zip.generateAsync({ type: 'blob' });
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  const isSinglePage = totalPages === 1;
+
+  return {
+    images,
+    zipBlob,
+    zipFilename: `${baseName}_images_${format.toUpperCase()}.zip`,
+    isSinglePage,
+    singleImageBlob: isSinglePage && images.length > 0 ? images[0].blob : undefined,
+    singleImageFilename: isSinglePage && images.length > 0 ? images[0].filename : undefined,
+  };
+}
+
+/**
+ * Legacy wrapper: Renders all pages of a PDF into images and returns ZIP blob.
+ */
+export async function renderPdfPagesToImagesZip(
+  pdfData: Uint8Array,
+  format: ImageExportFormat = 'png',
+  scale = 2.0,
+  baseName = 'document',
+  onProgress?: (current: number, total: number) => void
+): Promise<Blob> {
+  const result = await renderPdfPagesToImages(pdfData, format, scale, baseName, onProgress);
+  return result.zipBlob;
 }
 
 export interface CompressPdfOptions {

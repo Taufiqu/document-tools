@@ -197,7 +197,7 @@ export function parseGoogleDriveLink(inputUrl: string): {
 }
 
 /**
- * Recursively lists files in a Google Drive folder.
+ * Recursively lists all files in a Google Drive folder with full pagination support.
  */
 export async function listFilesInDriveFolder(
   folderId: string,
@@ -205,47 +205,56 @@ export async function listFilesInDriveFolder(
   accessToken?: string,
   mimeFilter?: string
 ): Promise<GoogleDriveSelectedDoc[]> {
-  let query = `'${folderId}' in parents and trashed = false`;
-  if (mimeFilter && mimeFilter.includes('pdf')) {
-    query += ` and (mimeType = 'application/pdf' or mimeType = 'application/vnd.google-apps.folder')`;
-  }
+  const allFiles: GoogleDriveSelectedDoc[] = [];
+  let pageToken: string | undefined = undefined;
 
-  const url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
-    query
-  )}&fields=files(id,name,mimeType,size)&pageSize=100&key=${apiKey}`;
-
-  const headers: HeadersInit = {};
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`;
-  }
-
-  const res = await fetch(url, { headers });
-  if (!res.ok) {
-    const errJson = await res.json().catch(() => ({}));
-    throw new Error(
-      errJson?.error?.message ||
-        `Failed to access Google Drive folder (${res.status}). Ensure the link sharing is set to 'Anyone with the link can view'.`
-    );
-  }
-
-  const data = await res.json();
-  const files: GoogleDriveSelectedDoc[] = [];
-
-  for (const item of data.files || []) {
-    if (item.mimeType === 'application/vnd.google-apps.folder') {
-      const subFiles = await listFilesInDriveFolder(item.id, apiKey, accessToken, mimeFilter);
-      files.push(...subFiles);
-    } else {
-      files.push({
-        id: item.id,
-        name: item.name,
-        mimeType: item.mimeType,
-        sizeBytes: item.size ? parseInt(item.size, 10) : undefined,
-      });
+  do {
+    let query = `'${folderId}' in parents and trashed = false`;
+    if (mimeFilter && mimeFilter.includes('pdf')) {
+      query += ` and (mimeType = 'application/pdf' or mimeType = 'application/vnd.google-apps.folder')`;
     }
-  }
 
-  return files;
+    let url = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(
+      query
+    )}&fields=nextPageToken,files(id,name,mimeType,size)&pageSize=1000&key=${apiKey}`;
+
+    if (pageToken) {
+      url += `&pageToken=${encodeURIComponent(pageToken)}`;
+    }
+
+    const headers: HeadersInit = {};
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    }
+
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => ({}));
+      throw new Error(
+        errJson?.error?.message ||
+          `Failed to access Google Drive folder (${res.status}). Ensure the link sharing is set to 'Anyone with the link can view'.`
+      );
+    }
+
+    const data = await res.json();
+    pageToken = data.nextPageToken;
+
+    for (const item of data.files || []) {
+      if (item.mimeType === 'application/vnd.google-apps.folder') {
+        const subFiles = await listFilesInDriveFolder(item.id, apiKey, accessToken, mimeFilter);
+        allFiles.push(...subFiles);
+      } else {
+        allFiles.push({
+          id: item.id,
+          name: item.name,
+          mimeType: item.mimeType,
+          sizeBytes: item.size ? parseInt(item.size, 10) : undefined,
+        });
+      }
+    }
+  } while (pageToken);
+
+  return allFiles;
 }
 
 /**

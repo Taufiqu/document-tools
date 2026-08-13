@@ -3,8 +3,21 @@ import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
 import { fileToUint8Array, downloadBlob, formatBytes } from '@/lib/utils';
 import { getPdfPageCount } from '@/lib/pdf-engine';
-import { renderPdfPagesToImagesZip, ImageExportFormat } from '@/lib/pdf-renderer';
-import { Image as ImageIcon, Sliders, Loader2 } from 'lucide-react';
+import {
+  renderPdfPagesToImages,
+  RenderPdfToImagesResult,
+  RenderedPdfImage,
+  ImageExportFormat,
+} from '@/lib/pdf-renderer';
+import {
+  Image as ImageIcon,
+  Sliders,
+  Loader2,
+  Download,
+  FileArchive,
+  CheckCircle2,
+  ExternalLink,
+} from 'lucide-react';
 
 export function PdfToImageView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -16,8 +29,8 @@ export function PdfToImageView() {
   const [isRendering, setIsRendering] = useState(false);
   const [progressText, setProgressText] = useState('');
 
-  const [resultZipBlob, setResultZipBlob] = useState<Blob | null>(null);
-  const [resultFilename, setResultFilename] = useState('');
+  // Results
+  const [renderResult, setRenderResult] = useState<RenderPdfToImagesResult | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
 
   const handleFilesSelected = async (files: File[]) => {
@@ -30,6 +43,7 @@ export function PdfToImageView() {
       setRawPdfBytes(bytes);
       const count = await getPdfPageCount(bytes);
       setPageCount(count);
+      setRenderResult(null);
     } catch (err) {
       alert(`Failed to load PDF: ${err}`);
     }
@@ -42,7 +56,7 @@ export function PdfToImageView() {
 
     try {
       const baseName = selectedFile.name.replace(/\.pdf$/i, '');
-      const zipBlob = await renderPdfPagesToImagesZip(
+      const result = await renderPdfPagesToImages(
         rawPdfBytes,
         format,
         scale,
@@ -52,9 +66,7 @@ export function PdfToImageView() {
         }
       );
 
-      const filename = `${baseName}_images_${format.toUpperCase()}.zip`;
-      setResultZipBlob(zipBlob);
-      setResultFilename(filename);
+      setRenderResult(result);
       setShowResultModal(true);
     } catch (err) {
       alert(`Failed to render images: ${err}`);
@@ -64,10 +76,19 @@ export function PdfToImageView() {
     }
   };
 
+  const handleDownloadSingleImage = (img: RenderedPdfImage) => {
+    downloadBlob(img.blob, img.filename);
+  };
+
+  const handleDownloadZip = () => {
+    if (!renderResult) return;
+    downloadBlob(renderResult.zipBlob, renderResult.zipFilename);
+  };
+
   const handleReset = () => {
     setSelectedFile(null);
     setRawPdfBytes(null);
-    setResultZipBlob(null);
+    setRenderResult(null);
   };
 
   return (
@@ -80,7 +101,7 @@ export function PdfToImageView() {
         </div>
         <h1 className="text-xl sm:text-2xl font-semibold text-white">PDF to Images</h1>
         <p className="text-xs sm:text-sm text-zinc-400">
-          Render PDF pages into high-resolution raster images packaged into a ZIP archive.
+          Render PDF pages into crisp raster images with 1-click single image download or full ZIP package.
         </p>
       </div>
 
@@ -90,7 +111,7 @@ export function PdfToImageView() {
           multiple={false}
           accept="application/pdf"
           title="Select or drop a PDF file"
-          subtitle="All pages will be rendered locally to images in memory"
+          subtitle="Direct single PNG download for 1-page PDFs, or complete image gallery for multi-page"
         />
       ) : (
         <div className="space-y-4">
@@ -180,29 +201,113 @@ export function PdfToImageView() {
                   <span>{progressText || 'Rendering pages...'}</span>
                 </>
               ) : (
-                <span>Export {pageCount} Pages as Images ({format.toUpperCase()})</span>
+                <span>
+                  {pageCount === 1
+                    ? `Render & Download Direct ${format.toUpperCase()}`
+                    : `Export ${pageCount} Pages as Images (${format.toUpperCase()})`}
+                </span>
               )}
             </button>
           </div>
+
+          {/* Rendered Gallery & Direct Downloads (for Multi-Page & Single Page) */}
+          {renderResult && (
+            <div className="p-4 rounded-xl bg-surface-200 border border-border space-y-4 animate-fade-in">
+              <div className="flex items-center justify-between pb-2 border-b border-border">
+                <div>
+                  <h3 className="text-xs font-semibold text-white uppercase tracking-wider font-mono">
+                    Rendered Pages ({renderResult.images.length})
+                  </h3>
+                  <p className="text-[11px] text-zinc-400 font-mono">
+                    {pageCount === 1 ? 'Single image ready' : 'Download individual images or all-in-one ZIP'}
+                  </p>
+                </div>
+
+                {!renderResult.isSinglePage && (
+                  <button
+                    onClick={handleDownloadZip}
+                    className="px-3 py-1.5 btn-primary text-xs flex items-center gap-1.5 cursor-pointer shadow-subtle"
+                  >
+                    <FileArchive className="w-3.5 h-3.5" />
+                    <span>Download All (ZIP)</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-96 overflow-y-auto pr-1">
+                {renderResult.images.map((img) => (
+                  <div
+                    key={img.pageNumber}
+                    className="p-2 rounded-lg bg-surface-100 border border-border flex flex-col justify-between space-y-2 text-xs"
+                  >
+                    <div className="aspect-[3/4] bg-black/40 rounded overflow-hidden relative flex items-center justify-center">
+                      <img
+                        src={img.dataUrl}
+                        alt={`Page ${img.pageNumber}`}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                      <span className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 text-white font-mono text-[10px]">
+                        P. {img.pageNumber}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <p className="text-[10px] font-mono text-zinc-400 truncate" title={img.filename}>
+                        {img.filename}
+                      </p>
+                      <button
+                        onClick={() => handleDownloadSingleImage(img)}
+                        className="w-full py-1.5 px-2 rounded bg-surface-50 border border-border hover:border-zinc-400 text-zinc-200 hover:text-white text-[11px] font-medium flex items-center justify-center gap-1 transition cursor-pointer"
+                      >
+                        <Download className="w-3 h-3" />
+                        <span>Download {format.toUpperCase()}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Result Modal */}
-      {resultZipBlob && (
+      {/* Result Modal for 1-Page or Quick ZIP */}
+      {renderResult && (
         <ResultModal
           isOpen={showResultModal}
           onClose={() => setShowResultModal(false)}
-          onDownload={() => downloadBlob(resultZipBlob, resultFilename)}
+          onDownload={() => {
+            if (renderResult.isSinglePage && renderResult.singleImageBlob) {
+              downloadBlob(renderResult.singleImageBlob, renderResult.singleImageFilename || `image.${format}`);
+            } else {
+              handleDownloadZip();
+            }
+          }}
           onReset={handleReset}
-          title="Pages successfully rendered"
-          filename={resultFilename}
-          fileSize={resultZipBlob.size}
+          title={renderResult.isSinglePage ? 'Image rendered successfully' : 'Pages successfully rendered'}
+          filename={
+            renderResult.isSinglePage && renderResult.singleImageFilename
+              ? renderResult.singleImageFilename
+              : renderResult.zipFilename
+          }
+          fileSize={
+            renderResult.isSinglePage && renderResult.singleImageBlob
+              ? renderResult.singleImageBlob.size
+              : renderResult.zipBlob.size
+          }
           stats={[
-            { label: 'Images rendered', value: `${pageCount} files` },
+            {
+              label: 'Output',
+              value: renderResult.isSinglePage ? `Direct ${format.toUpperCase()}` : `${renderResult.images.length} images (ZIP)`,
+            },
             { label: 'Format', value: format.toUpperCase() },
             { label: 'Scale', value: `${scale}x` },
           ]}
-          downloadLabel="Download Images ZIP"
+          downloadLabel={
+            renderResult.isSinglePage
+              ? `Download ${format.toUpperCase()} Image`
+              : 'Download All Pages as ZIP'
+          }
         />
       )}
     </div>

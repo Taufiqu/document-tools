@@ -38,7 +38,7 @@ export function Dropzone({
   onFilesSelected,
   accept = 'application/pdf',
   multiple = true,
-  maxFiles = 100,
+  maxFiles = 500,
   title = 'Select or drop files',
   subtitle = 'Processed locally in browser memory',
   selectedFiles = [],

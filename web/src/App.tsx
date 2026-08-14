@@ -29,6 +29,69 @@ function ViewFallback() {
   );
 }
 
+const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
+  overview: {
+    title: 'DocuCraft — Privacy-First Document & Image Studio by Taufiqu',
+    desc: 'Fast, private, and local document & image tools engineered by Taufiqu. Zero server uploads, processed 100% in browser memory.',
+  },
+  scanner: {
+    title: 'CamScanner Web — Document Camera & Perspective Scan | DocuCraft',
+    desc: 'Capture document photos, auto-detect corners, perspective warp, and compile clean scanned PDFs locally in browser RAM.',
+  },
+  organizer: {
+    title: 'Visual PDF Page Organizer & Reorder | DocuCraft',
+    desc: 'Visually rearrange, delete, and rotate PDF pages directly in your browser without uploading files.',
+  },
+  merge: {
+    title: 'Merge PDF Online Gratis — Standardize A4/F4 Folio | DocuCraft',
+    desc: 'Combine multiple PDF files into one standardized document (A4, F4, Letter) processed 100% locally in browser memory.',
+  },
+  split: {
+    title: 'Split PDF Online — Extract Pages & Burst ZIP | DocuCraft',
+    desc: 'Split PDF files by page ranges or extract specific pages into individual PDFs without server uploads.',
+  },
+  'compress-pdf': {
+    title: 'Compress PDF Online — Downsample in Browser RAM | DocuCraft',
+    desc: 'Reduce PDF file sizes locally to satisfy upload limits on CPNS, BUMN, and job portals without quality loss.',
+  },
+  'page-number': {
+    title: 'Add Page Numbers to PDF Online | DocuCraft',
+    desc: 'Stamp Arabic and Roman page numbers on PDFs with custom positions and margins in client-side RAM.',
+  },
+  grayscale: {
+    title: 'Grayscale & B&W PDF Converter | DocuCraft',
+    desc: 'Convert color PDFs to crisp black and white with contrast and brightness fine-tuning for print economy.',
+  },
+  watermark: {
+    title: 'PDF Watermark Studio — Diagonal & Horizontal Text | DocuCraft',
+    desc: 'Add confidential or draft text watermarks to your PDF documents with opacity and angle controls.',
+  },
+  'pas-foto': {
+    title: 'Pas Foto & ID Studio (2x3, 3x4, 4x6, Paspor) | DocuCraft',
+    desc: 'Format official ID photos with red/blue background replacement and file size limits for administrative portals.',
+  },
+  'png-to-jpg': {
+    title: 'PNG to JPG Batch Converter with Background Fill | DocuCraft',
+    desc: 'Convert transparent PNG images to JPEG format with customizable solid background colors.',
+  },
+  'pdf-to-image': {
+    title: 'PDF to Image Converter (Direct PNG / JPG) | DocuCraft',
+    desc: 'Render PDF pages into high-resolution PNG or JPG images with 1-click single-page downloads.',
+  },
+  'image-to-pdf': {
+    title: 'Convert Images to PDF with Magic Color Scan Filter | DocuCraft',
+    desc: 'Transform photos into realistic scanned PDF documents with Magic Color and B&W photocopy filters.',
+  },
+  'compress-image': {
+    title: 'Compress Images (JPEG, PNG, WebP) Locally | DocuCraft',
+    desc: 'Optimize image dimensions and weights directly in browser memory without sending data to third parties.',
+  },
+  favicon: {
+    title: 'Favicon & App Icon Pack Generator | DocuCraft',
+    desc: 'Generate complete multi-resolution .ico and PNG favicon packages with manifest files for web developers.',
+  },
+};
+
 export function App() {
   // Sync route with URL hash for bookmarking and back/forward navigation
   const [currentTool, setCurrentTool] = useState<string>(() => {
@@ -52,6 +115,21 @@ export function App() {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  // Update dynamic SEO title and meta description per tool
+  useEffect(() => {
+    const meta = TOOL_METADATA[currentTool] || TOOL_METADATA.overview;
+    document.title = meta.title;
+
+    const descTag = document.querySelector('meta[name="description"]');
+    if (descTag) {
+      descTag.setAttribute('content', meta.desc);
+    }
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    if (ogTitle) {
+      ogTitle.setAttribute('content', meta.title);
+    }
+  }, [currentTool]);
 
   const handleSelectTool = (toolId: string) => {
     setCurrentTool(toolId);

@@ -1,0 +1,6 @@
+# robots.txt for DocuCraft by Taufiqu (https://toolsdoc.vercel.app)
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://toolsdoc.vercel.app/sitemap.xml

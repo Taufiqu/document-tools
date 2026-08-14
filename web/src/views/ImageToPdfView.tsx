@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
-import { downloadUint8Array, formatBytes } from '@/lib/utils';
+import { downloadUint8Array, formatBytes, getTimestampString } from '@/lib/utils';
 import { imagesToPdf, ImageToPdfOptions } from '@/lib/image-engine';
 import {
   ScanFilterType,
@@ -118,7 +118,7 @@ export function ImageToPdfView() {
         options
       );
 
-      const filename = `scanned_document_${scanFilter}_${Date.now()}.pdf`;
+      const filename = `scanned_document_${scanFilter}_${getTimestampString()}.pdf`;
       setResultBytes(pdfBytes);
       setResultFilename(filename);
       setShowResultModal(true);

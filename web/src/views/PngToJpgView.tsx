@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
-import { downloadBlob, formatBytes } from '@/lib/utils';
+import { downloadBlob, formatBytes, getTimestampString } from '@/lib/utils';
 import {
   batchConvertPngToJpg,
   ConvertedImageItem,
@@ -103,7 +103,7 @@ export function PngToJpgView() {
     if (convertedItems.length === 1) {
       downloadBlob(convertedItems[0].blob, convertedItems[0].targetName);
     } else if (zipBlob) {
-      downloadBlob(zipBlob, `converted_jpg_${Date.now()}.zip`);
+      downloadBlob(zipBlob, `converted_jpg_${getTimestampString()}.zip`);
     }
   };
 
@@ -274,7 +274,7 @@ export function PngToJpgView() {
           filename={
             convertedItems.length === 1
               ? convertedItems[0].targetName
-              : `converted_jpg_${Date.now()}.zip`
+              : `converted_jpg_${getTimestampString()}.zip`
           }
           fileSize={
             convertedItems.length === 1

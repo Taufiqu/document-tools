@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
-import { downloadBlob, formatBytes } from '@/lib/utils';
+import { downloadBlob, formatBytes, getTimestampString } from '@/lib/utils';
 import { generateFaviconBundle, FaviconBundleResult } from '@/lib/image-engine';
 import { Sparkles, Code, Check, Copy, Loader2 } from 'lucide-react';
 
@@ -128,10 +128,10 @@ export function FaviconView() {
         <ResultModal
           isOpen={showResultModal}
           onClose={() => setShowResultModal(false)}
-          onDownload={() => downloadBlob(bundleResult.zipBlob, `favicon_pack_${Date.now()}.zip`)}
+          onDownload={() => downloadBlob(bundleResult.zipBlob, `favicon_pack_${getTimestampString()}.zip`)}
           onReset={handleReset}
           title="Favicon pack generated"
-          filename={`favicon_pack_${Date.now()}.zip`}
+          filename={`favicon_pack_${getTimestampString()}.zip`}
           fileSize={bundleResult.zipBlob.size}
           stats={[
             { label: 'Files included', value: '7 icons + manifest' },

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Dropzone } from '@/components/Dropzone';
 import { ResultModal } from '@/components/ResultModal';
-import { fileToUint8Array, downloadUint8Array, formatBytes } from '@/lib/utils';
+import { fileToUint8Array, downloadUint8Array, formatBytes, getTimestampString } from '@/lib/utils';
 import { mergePdfs, getPdfPageCount, TargetPaperSize } from '@/lib/pdf-engine';
 import { Layers, ArrowUp, ArrowDown, Trash2, Loader2, Sliders, ArrowDownAZ } from 'lucide-react';
 import { naturalSortFiles } from '@/lib/folder-scanner';
@@ -94,7 +94,7 @@ export function MergeView() {
         items.map((i) => ({ data: i.data, name: i.name })),
         { paperSize, orientation, margin }
       );
-      const filename = `merged_${paperSize}_${Date.now()}.pdf`;
+      const filename = `merged_${paperSize}_${getTimestampString()}.pdf`;
       setMergedResult({ bytes: mergedBytes, filename });
       setShowResultModal(true);
     } catch (err) {

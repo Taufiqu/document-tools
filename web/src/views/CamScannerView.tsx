@@ -19,7 +19,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { ResultModal } from '@/components/ResultModal';
-import { downloadUint8Array, formatBytes } from '@/lib/utils';
+import { downloadUint8Array, formatBytes, getTimestampString } from '@/lib/utils';
 import {
   QuadCorners,
   Point,
@@ -329,7 +329,7 @@ export function CamScannerView() {
         orientation: 'auto',
       });
 
-      const filename = `docucraft_scan_${pages.length}_pages_${Date.now()}.pdf`;
+      const filename = `docucraft_scan_${pages.length}p_${getTimestampString()}.pdf`;
       setExportResult({ bytes: pdfBytes, filename });
       setShowResultModal(true);
     } catch (err) {
@@ -349,7 +349,7 @@ export function CamScannerView() {
         zip.file(`scanned_page_${idx + 1}.jpg`, p.blob);
       });
       const zipBlob = await zip.generateAsync({ type: 'uint8array' });
-      const filename = `scanned_images_${Date.now()}.zip`;
+      const filename = `scanned_images_${getTimestampString()}.zip`;
       setExportResult({ bytes: zipBlob, filename });
       setShowResultModal(true);
     } catch (err) {

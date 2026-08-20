@@ -325,7 +325,7 @@ export function CamScannerView() {
       );
       const pdfBytes = await imagesToPdf(files, {
         pageSize,
-        margin: 15,
+        margin: 0,
         orientation: 'auto',
       });
 

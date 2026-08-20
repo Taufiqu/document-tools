@@ -34,7 +34,7 @@ export function ImageToPdfView() {
   const [images, setImages] = useState<SelectedImageItem[]>([]);
   const [pageSize, setPageSize] = useState<'A4' | 'F4' | 'Letter' | 'Fit'>('A4');
   const [orientation, setOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
-  const [margin, setMargin] = useState<number>(20);
+  const [margin, setMargin] = useState<number>(0);
 
   // Realistic Scan Filter States
   const [scanFilter, setScanFilter] = useState<ScanFilterType>('magic-color');
@@ -320,26 +320,46 @@ export function ImageToPdfView() {
 
               {/* Margins */}
               <div className="space-y-1.5">
-                <span className="text-xs text-zinc-400">Page Margin:</span>
-                <div className="grid grid-cols-3 gap-1 bg-surface-100 p-1 rounded-lg border border-border text-xs">
+                <div className="flex items-center justify-between text-xs text-zinc-400">
+                  <span>Page Margin:</span>
+                  <span className="font-mono text-zinc-300 font-medium">{margin} pt</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
                   {[
-                    { val: 0, label: 'Zero (0pt)' },
-                    { val: 15, label: 'Compact' },
-                    { val: 30, label: 'Standard' },
+                    { val: 0, label: '0pt (None)' },
+                    { val: 5, label: '5pt (Compact)' },
+                    { val: 15, label: '15pt (Standard)' },
                   ].map((m) => (
                     <button
                       key={m.val}
                       type="button"
                       onClick={() => setMargin(m.val)}
-                      className={`py-1 rounded text-xs font-medium transition cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-md text-xs font-medium transition cursor-pointer ${
                         margin === m.val
-                          ? 'bg-zinc-800 text-white shadow-sm'
-                          : 'text-zinc-400 hover:text-white'
+                          ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-subtle'
+                          : 'bg-surface-100 border border-border text-zinc-400 hover:text-white'
                       }`}
                     >
                       {m.label}
                     </button>
                   ))}
+
+                  {/* Custom Margin Text / Number Field */}
+                  <div className="flex items-center gap-1 bg-surface-100 border border-border rounded-md px-2 py-0.5 ml-auto">
+                    <span className="text-[11px] text-zinc-500 font-mono">Custom:</span>
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={margin}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        setMargin(isNaN(val) ? 0 : Math.max(0, Math.min(100, val)));
+                      }}
+                      className="w-12 bg-transparent text-xs text-white font-mono text-center focus:outline-none"
+                    />
+                    <span className="text-[11px] text-zinc-500 font-mono">pt</span>
+                  </div>
                 </div>
               </div>
             </div>

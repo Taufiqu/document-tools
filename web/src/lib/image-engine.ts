@@ -28,6 +28,7 @@ export interface ConvertPngToJpgOptions {
   quality?: number; // 10 to 100, default 92
   backgroundColor?: string; // hex color for alpha channel replacement, default '#ffffff'
   targetFormat?: 'image/jpeg' | 'image/webp';
+  onProgress?: (current: number, total: number) => void;
 }
 
 export interface FaviconBundleResult {
@@ -158,7 +159,7 @@ export async function imagesToPdf(
   options: ImageToPdfOptions = {}
 ): Promise<Uint8Array> {
   const pdfDoc = await PDFDocument.create();
-  const margin = options.pageSize === 'Fit' ? 0 : options.margin ?? 20;
+  const margin = options.pageSize === 'Fit' ? 0 : options.margin ?? 0;
 
   for (const file of files) {
     let imageBytes: Uint8Array;
@@ -421,7 +422,11 @@ export async function batchConvertPngToJpg(
   const items: ConvertedImageItem[] = [];
   const zip = new JSZip();
 
-  for (const file of files) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (options.onProgress) {
+      options.onProgress(i + 1, files.length);
+    }
     const item = await convertPngToJpg(file, options);
     items.push(item);
     if (files.length > 1) {

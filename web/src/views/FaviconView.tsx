@@ -139,24 +139,37 @@ export function FaviconView() {
           ]}
           downloadLabel="Download Icon Package (.ZIP)"
         >
-          {/* HTML Snippet Box */}
-          <div className="mt-3 p-3 rounded-lg bg-surface-100 border border-border text-left space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-zinc-300">
-              <span className="font-medium flex items-center gap-1.5 text-zinc-200">
-                <Code className="w-3.5 h-3.5 text-zinc-400" />
-                <span>HTML &lt;head&gt; tags</span>
-              </span>
+          {/* Quick Actions & HTML Snippet Box */}
+          <div className="mt-3 space-y-2 text-left">
+            <div className="flex items-center justify-between p-2 rounded-lg bg-surface-100 border border-border">
+              <span className="text-xs text-zinc-300 font-mono">Need only standard ICO?</span>
               <button
-                onClick={handleCopyHtml}
-                className="px-2 py-0.5 rounded bg-surface-50 hover:bg-surface-200 text-zinc-300 flex items-center gap-1 text-[10px] font-mono transition cursor-pointer"
+                type="button"
+                onClick={() => downloadBlob(bundleResult.singleIcoBlob, 'favicon.ico')}
+                className="px-2.5 py-1 rounded bg-surface-50 hover:bg-surface-200 border border-border text-zinc-200 text-xs font-mono transition cursor-pointer"
               >
-                {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                <span>{copied ? 'Copied' : 'Copy'}</span>
+                Download favicon.ico
               </button>
             </div>
-            <pre className="text-[10px] font-mono text-zinc-300 overflow-x-auto p-2 bg-surface-300 rounded border border-border/80 select-all">
-              {bundleResult.htmlSnippet}
-            </pre>
+
+            <div className="p-3 rounded-lg bg-surface-100 border border-border space-y-1.5">
+              <div className="flex items-center justify-between text-xs text-zinc-300">
+                <span className="font-medium flex items-center gap-1.5 text-zinc-200">
+                  <Code className="w-3.5 h-3.5 text-zinc-400" />
+                  <span>HTML &lt;head&gt; tags</span>
+                </span>
+                <button
+                  onClick={handleCopyHtml}
+                  className="px-2 py-0.5 rounded bg-surface-50 hover:bg-surface-200 text-zinc-300 flex items-center gap-1 text-[10px] font-mono transition cursor-pointer"
+                >
+                  {copied ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+              <pre className="text-[10px] font-mono text-zinc-300 overflow-x-auto p-2 bg-surface-300 rounded border border-border/80 select-all">
+                {bundleResult.htmlSnippet}
+              </pre>
+            </div>
           </div>
         </ResultModal>
       )}

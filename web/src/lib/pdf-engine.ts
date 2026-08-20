@@ -38,7 +38,7 @@ export type TargetPaperSize = 'a4' | 'letter' | 'f4' | 'original';
 export interface MergePdfOptions {
   paperSize?: TargetPaperSize; // default 'a4'
   orientation?: 'auto' | 'portrait' | 'landscape'; // default 'auto'
-  margin?: number; // default 15 points
+  margin?: number; // default 0 points (borderless)
 }
 
 export type PageNumberPosition =
@@ -72,7 +72,7 @@ export async function getPdfPageCount(pdfData: Uint8Array): Promise<number> {
  */
 export async function mergePdfs(
   pdfList: Array<{ data: Uint8Array; name: string }>,
-  options: MergePdfOptions = { paperSize: 'a4', orientation: 'auto', margin: 15 }
+  options: MergePdfOptions = { paperSize: 'a4', orientation: 'auto', margin: 0 }
 ): Promise<Uint8Array> {
   if (pdfList.length === 0) {
     throw new Error('No PDF files provided to merge.');
@@ -80,7 +80,7 @@ export async function mergePdfs(
 
   const mergedDoc = await PDFDocument.create();
   const paperSize = options.paperSize ?? 'a4';
-  const margin = options.margin ?? 15;
+  const margin = options.margin ?? 0;
   const orientationMode = options.orientation ?? 'auto';
 
   // Standard dimensions in PDF points (1 inch = 72 pt)
@@ -159,17 +159,31 @@ export async function mergePdfs(
   return await mergedDoc.save();
 }
 
+export interface SplitPageFile {
+  pageNumber: number;
+  bytes: Uint8Array;
+  filename: string;
+}
+
+export interface SplitSinglePagesResult {
+  pages: SplitPageFile[];
+  zipBlob: Blob;
+  zipFilename: string;
+  isSinglePage: boolean;
+}
+
 /**
- * Splits a PDF into individual single-page documents and packages them in a ZIP.
+ * Splits a PDF into individual single-page documents and packages them in a ZIP, while exposing individual files.
  */
 export async function splitPdfIntoSinglePages(
   pdfData: Uint8Array,
   baseName = 'document'
-): Promise<Blob> {
+): Promise<SplitSinglePagesResult> {
   const srcDoc = await PDFDocument.load(pdfData, { ignoreEncryption: true });
   const totalPages = srcDoc.getPageCount();
   const zip = new JSZip();
   const cleanBase = baseName.replace(/\.pdf$/i, '');
+  const pages: SplitPageFile[] = [];
 
   for (let i = 0; i < totalPages; i++) {
     const singleDoc = await PDFDocument.create();
@@ -178,10 +192,36 @@ export async function splitPdfIntoSinglePages(
 
     const bytes = await singleDoc.save();
     const padIndex = String(i + 1).padStart(String(totalPages).length, '0');
-    zip.file(`${cleanBase}_page_${padIndex}.pdf`, bytes);
+    const filename = totalPages === 1 ? `${cleanBase}_page_1.pdf` : `${cleanBase}_page_${padIndex}.pdf`;
+
+    pages.push({
+      pageNumber: i + 1,
+      bytes,
+      filename,
+    });
+    zip.file(filename, bytes);
   }
 
-  return await zip.generateAsync({ type: 'blob' });
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  return {
+    pages,
+    zipBlob,
+    zipFilename: `${cleanBase}_single_pages.zip`,
+    isSinglePage: totalPages === 1,
+  };
+}
+
+export interface SplitRangeFile {
+  range: string;
+  bytes: Uint8Array;
+  filename: string;
+}
+
+export interface SplitRangesResult {
+  ranges: SplitRangeFile[];
+  zipBlob: Blob;
+  zipFilename: string;
+  isSingleRange: boolean;
 }
 
 /**
@@ -191,11 +231,12 @@ export async function splitPdfByRanges(
   pdfData: Uint8Array,
   ranges: string[], // e.g. ['1-3', '4-5', '6']
   baseName = 'document'
-): Promise<Blob> {
+): Promise<SplitRangesResult> {
   const srcDoc = await PDFDocument.load(pdfData, { ignoreEncryption: true });
   const totalPages = srcDoc.getPageCount();
   const zip = new JSZip();
   const cleanBase = baseName.replace(/\.pdf$/i, '');
+  const rangeFiles: SplitRangeFile[] = [];
 
   for (const rangeStr of ranges) {
     const trimmed = rangeStr.trim();
@@ -235,10 +276,22 @@ export async function splitPdfByRanges(
     }
 
     const bytes = await rangeDoc.save();
-    zip.file(`${cleanBase}_pages_${start}-${end}.pdf`, bytes);
+    const filename = `${cleanBase}_p${start}-${end}.pdf`;
+    rangeFiles.push({
+      range: `${start}-${end}`,
+      bytes,
+      filename,
+    });
+    zip.file(filename, bytes);
   }
 
-  return await zip.generateAsync({ type: 'blob' });
+  const zipBlob = await zip.generateAsync({ type: 'blob' });
+  return {
+    ranges: rangeFiles,
+    zipBlob,
+    zipFilename: `${cleanBase}_ranges.zip`,
+    isSingleRange: rangeFiles.length === 1,
+  };
 }
 
 /**

@@ -1,5 +1,5 @@
 import React from 'react';
-import { RotateCw, RotateCcw, Trash2, Undo2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, RotateCw, RotateCcw, Trash2, Undo2 } from 'lucide-react';
 import { PageAction } from '@/lib/pdf-engine';
 
 interface PageThumbnailProps {
@@ -8,6 +8,9 @@ interface PageThumbnailProps {
   onRotateCw: (id: string) => void;
   onRotateCcw: (id: string) => void;
   onToggleDelete: (id: string) => void;
+  onMove: (id: string, direction: -1 | 1) => void;
+  canMovePrevious: boolean;
+  canMoveNext: boolean;
 }
 
 export function PageThumbnail({
@@ -16,6 +19,9 @@ export function PageThumbnail({
   onRotateCw,
   onRotateCcw,
   onToggleDelete,
+  onMove,
+  canMovePrevious,
+  canMoveNext,
 }: PageThumbnailProps) {
   const isDeleted = action.isDeleted;
   const rotation = action.rotateAngle || 0;
@@ -70,6 +76,15 @@ export function PageThumbnail({
       {/* Action Buttons Bar */}
       <div className="w-full flex items-center justify-center gap-1 mt-2 pt-1.5 border-t border-border/60">
         <button
+          onClick={() => onMove(action.id, -1)}
+          disabled={isDeleted || !canMovePrevious}
+          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-surface-50 disabled:opacity-20 transition cursor-pointer"
+          title="Move page earlier"
+        >
+          <ChevronLeft className="w-3.5 h-3.5" />
+        </button>
+
+        <button
           onClick={() => onRotateCcw(action.id)}
           disabled={isDeleted}
           className="p-1 rounded text-zinc-400 hover:text-white hover:bg-surface-50 disabled:opacity-20 transition cursor-pointer"
@@ -97,6 +112,15 @@ export function PageThumbnail({
           title={isDeleted ? 'Restore' : 'Delete'}
         >
           {isDeleted ? <Undo2 className="w-3.5 h-3.5" /> : <Trash2 className="w-3.5 h-3.5" />}
+        </button>
+
+        <button
+          onClick={() => onMove(action.id, 1)}
+          disabled={isDeleted || !canMoveNext}
+          className="p-1 rounded text-zinc-400 hover:text-white hover:bg-surface-50 disabled:opacity-20 transition cursor-pointer"
+          title="Move page later"
+        >
+          <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
     </div>

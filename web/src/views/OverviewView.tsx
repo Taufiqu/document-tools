@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Layers,
-  Scissors,
   FileText,
   Shield,
   Image as ImageIcon,
@@ -30,8 +29,8 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
       tools: [
         {
           id: 'organizer',
-          title: 'Page Organizer',
-          description: 'Reorder, rotate degrees, and remove unwanted pages with visual canvas previews.',
+          title: 'PDF Organizer',
+          description: 'Reorder, rotate, remove pages, insert JPG/PNG pages, and export selected pages as a new PDF.',
           icon: FileText,
           tag: 'Visual',
         },
@@ -41,13 +40,6 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Combine multiple PDF documents into one with standardized paper scales (A4, F4, Letter).',
           icon: Layers,
           tag: 'Standardized',
-        },
-        {
-          id: 'split',
-          title: 'PDF Splitter',
-          description: 'Extract individual pages into single PDFs or split documents by custom page intervals.',
-          icon: Scissors,
-          tag: 'Precision',
         },
         {
           id: 'compress-pdf',

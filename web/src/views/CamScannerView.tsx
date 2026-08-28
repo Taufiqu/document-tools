@@ -615,39 +615,50 @@ export function CamScannerView() {
                 </div>
               );
             })}
-          </div>
+            {/* The magnifier follows the active handle so the user's hand does not obscure it. */}
+            {activeCorner && (() => {
+              const point = corners[activeCorner];
+              const zoom = 3;
+              const previewSize = 112;
+              const pointX = point.x * displayScale;
+              const pointY = point.y * displayScale;
+              const imageWidth = capturedImage.naturalWidth * displayScale;
+              const imageHeight = capturedImage.naturalHeight * displayScale;
+              const previewLeft = Math.max(
+                previewSize / 2 + 6,
+                Math.min(imageWidth - previewSize / 2 - 6, pointX),
+              );
+              const previewTop = pointY < previewSize + 28
+                ? Math.min(imageHeight - previewSize / 2 - 6, pointY + previewSize / 2 + 28)
+                : pointY - previewSize / 2 - 28;
+              const backgroundWidth = imageWidth * zoom;
+              const backgroundHeight = imageHeight * zoom;
+              const backgroundX = previewSize / 2 - pointX * zoom;
+              const backgroundY = previewSize / 2 - pointY * zoom;
 
-          {activeCorner && (() => {
-            const point = corners[activeCorner];
-            const zoom = 3;
-            const previewSize = 152;
-            const backgroundWidth = capturedImage.naturalWidth * displayScale * zoom;
-            const backgroundHeight = capturedImage.naturalHeight * displayScale * zoom;
-            const backgroundX = previewSize / 2 - point.x * displayScale * zoom;
-            const backgroundY = previewSize / 2 - point.y * displayScale * zoom;
-
-            return (
-              <div className="flex items-center gap-3 rounded-lg border border-emerald-400/35 bg-surface-100 p-2.5 animate-fade-in">
+              return (
                 <div
-                  className="relative h-[152px] w-[152px] shrink-0 overflow-hidden rounded-md border border-emerald-400/60 bg-black"
-                  style={{
-                    backgroundImage: `url(${capturedImage.src})`,
-                    backgroundRepeat: 'no-repeat',
-                    backgroundSize: `${backgroundWidth}px ${backgroundHeight}px`,
-                    backgroundPosition: `${backgroundX}px ${backgroundY}px`,
-                  }}
+                  className="pointer-events-none absolute z-40 -translate-x-1/2 -translate-y-1/2 animate-fade-in"
+                  style={{ left: `${previewLeft}px`, top: `${previewTop}px` }}
+                  aria-label="Precision preview"
                 >
-                  <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-emerald-300/90" />
-                  <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-emerald-300/90" />
-                  <span className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400" />
+                  <div
+                    className="relative h-28 w-28 overflow-hidden rounded-lg border-2 border-emerald-300 bg-black shadow-elevated"
+                    style={{
+                      backgroundImage: `url(${capturedImage.src})`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundSize: `${backgroundWidth}px ${backgroundHeight}px`,
+                      backgroundPosition: `${backgroundX}px ${backgroundY}px`,
+                    }}
+                  >
+                    <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-emerald-200/90" />
+                    <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-emerald-200/90" />
+                    <span className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400" />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-xs font-medium text-white">Precision Preview</p>
-                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">Geser titik di gambar utama. Preview ini memperbesar area titik agar tidak tertutup tangan.</p>
-                </div>
-              </div>
-            );
-          })()}
+              );
+            })()}
+          </div>
 
           <div className="flex gap-2 pt-2">
             <button

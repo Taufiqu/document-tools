@@ -16,6 +16,9 @@ export interface PageAction {
   rotateAngle: number; // 0, 90, 180, 270
   isDeleted: boolean;
   thumbnailUrl?: string;
+  sourceType?: 'pdf' | 'image';
+  imageData?: Uint8Array;
+  imageMimeType?: 'image/jpeg' | 'image/png';
 }
 
 export interface SplitRange {
@@ -337,6 +340,19 @@ export async function organizePdf(
   }
 
   for (const action of activePages) {
+    if (action.sourceType === 'image' && action.imageData && action.imageMimeType) {
+      const image = action.imageMimeType === 'image/png'
+        ? await outDoc.embedPng(action.imageData)
+        : await outDoc.embedJpg(action.imageData);
+      const { width, height } = image.scale(1);
+      const page = outDoc.addPage([width, height]);
+      page.drawImage(image, { x: 0, y: 0, width, height });
+      if (action.rotateAngle) {
+        page.setRotation(degrees(action.rotateAngle % 360));
+      }
+      continue;
+    }
+
     const [copiedPage] = await outDoc.copyPages(srcDoc, [action.originalIndex]);
     const currentRotation = copiedPage.getRotation().angle;
     const additionalRotation = (action.rotateAngle || 0) % 360;

@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Dropzone } from '@/components/Dropzone';
 import { PageThumbnail } from '@/components/PageThumbnail';
 import { ResultModal } from '@/components/ResultModal';
 import { fileToUint8Array, downloadUint8Array } from '@/lib/utils';
 import { getPdfPageCount, organizePdf, PageAction } from '@/lib/pdf-engine';
 import { renderPdfPageToDataUrl } from '@/lib/pdf-renderer';
-import { FileText, RotateCw, Save, RefreshCw, Loader2 } from 'lucide-react';
+import { FileText, ImagePlus, RotateCw, Save, RefreshCw, Loader2 } from 'lucide-react';
 
 export function OrganizerView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -14,6 +14,7 @@ export function OrganizerView() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [processedResult, setProcessedResult] = useState<{ bytes: Uint8Array; filename: string } | null>(null);
   const [showResultModal, setShowResultModal] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const handleFilesSelected = async (files: File[]) => {
     if (files.length === 0) return;
@@ -78,6 +79,44 @@ export function OrganizerView() {
     );
   };
 
+  const handleMovePage = (id: string, direction: -1 | 1) => {
+    setPages((prev) => {
+      const index = prev.findIndex((page) => page.id === id);
+      const targetIndex = index + direction;
+      if (index < 0 || targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      return next;
+    });
+  };
+
+  const handleImagesSelected = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const imageFiles = Array.from(files).filter((file) => file.type === 'image/jpeg' || file.type === 'image/png');
+    if (imageFiles.length !== files.length) {
+      alert('Only JPG and PNG can be inserted as PDF pages for now.');
+    }
+
+    try {
+      const imagePages = await Promise.all(imageFiles.map(async (file, index): Promise<PageAction> => ({
+        id: `image-${Date.now()}-${index}`,
+        pageNumber: 0,
+        originalIndex: -1,
+        rotateAngle: 0,
+        isDeleted: false,
+        sourceType: 'image',
+        imageData: await fileToUint8Array(file),
+        imageMimeType: file.type as 'image/jpeg' | 'image/png',
+        thumbnailUrl: URL.createObjectURL(file),
+      })));
+      setPages((prev) => [...prev, ...imagePages]);
+    } catch (err) {
+      alert(`Failed to insert image: ${err}`);
+    } finally {
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
   const handleSaveOrganized = async () => {
     if (!rawPdfBytes) return;
     setIsProcessing(true);
@@ -113,7 +152,7 @@ export function OrganizerView() {
         </div>
         <h1 className="text-xl sm:text-2xl font-semibold text-white">Visual Page Organizer</h1>
         <p className="text-xs sm:text-sm text-zinc-400">
-          Preview thumbnail renderings in RAM, rotate angles, and discard unwanted pages.
+          Reorder, rotate, remove, and insert JPG/PNG pages. Everything stays in browser memory.
         </p>
       </div>
 
@@ -137,6 +176,22 @@ export function OrganizerView() {
             </div>
 
             <div className="flex items-center gap-2">
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                multiple
+                className="hidden"
+                onChange={(event) => void handleImagesSelected(event.target.files)}
+              />
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                className="px-2.5 py-1.5 rounded-md btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <ImagePlus className="w-3 h-3" />
+                <span>Insert Images</span>
+              </button>
+
               <button
                 onClick={() => handleRotateAll(90)}
                 className="px-2.5 py-1.5 rounded-md btn-secondary text-xs flex items-center gap-1.5 cursor-pointer"
@@ -184,6 +239,9 @@ export function OrganizerView() {
                   onRotateCw={handleRotateCw}
                   onRotateCcw={handleRotateCcw}
                   onToggleDelete={handleToggleDelete}
+                  onMove={handleMovePage}
+                  canMovePrevious={idx > 0}
+                  canMoveNext={idx < pages.length - 1}
                 />
               ))}
             </div>

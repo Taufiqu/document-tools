@@ -7,9 +7,13 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "start": "vite preview --port 3000"
+    "start": "vite preview --port 3000",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@tauri-apps/api": "^2.11.1",
     "@vercel/analytics": "^2.0.1",
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
@@ -23,6 +27,7 @@
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4",
     "@types/canvas-confetti": "^1.9.0",
     "@types/file-saver": "^2.0.7",
     "@types/node": "^20.17.0",

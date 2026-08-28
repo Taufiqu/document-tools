@@ -1,5 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Navbar } from './components/Navbar';
+import { TitleBar } from './components/TitleBar';
 import { Loader2 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -93,6 +94,9 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
 };
 
 export function App() {
+  // Detect if running inside Tauri desktop environment
+  const [isDesktop, setIsDesktop] = useState(false);
+
   // Sync route with URL hash for bookmarking and back/forward navigation
   const [currentTool, setCurrentTool] = useState<string>(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -101,6 +105,13 @@ export function App() {
     }
     return 'overview';
   });
+
+  useEffect(() => {
+    // Detect Tauri environment (desktop app)
+    import('@tauri-apps/api/core')
+      .then(({ isTauri }) => setIsDesktop(isTauri()))
+      .catch(() => setIsDesktop(false));
+  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -142,81 +153,86 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-zinc-100 selection:bg-zinc-800 selection:text-white">
-      <Navbar currentTool={currentTool} onSelectTool={handleSelectTool} />
+    <div className={`flex flex-col bg-background text-zinc-100 selection:bg-zinc-800 selection:text-white ${isDesktop ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      {/* Custom titlebar — only rendered inside Tauri desktop window */}
+      {isDesktop && <TitleBar />}
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <Suspense fallback={<ViewFallback />}>
-          {currentTool === 'overview' && <OverviewView onSelectTool={handleSelectTool} />}
-          {currentTool === 'scanner' && <CamScannerView />}
-          {currentTool === 'organizer' && <OrganizerView />}
-          {currentTool === 'merge' && <MergeView />}
-          {currentTool === 'split' && <SplitView />}
-          {currentTool === 'compress-pdf' && <CompressPdfView />}
-          {currentTool === 'page-number' && <PageNumberView />}
-          {currentTool === 'grayscale' && <GrayscalePdfView />}
-          {currentTool === 'watermark' && <WatermarkView />}
-          {currentTool === 'pas-foto' && <PasFotoView />}
-          {currentTool === 'png-to-jpg' && <PngToJpgView />}
-          {currentTool === 'pdf-to-image' && <PdfToImageView />}
-          {currentTool === 'image-to-pdf' && <ImageToPdfView />}
-          {currentTool === 'compress-image' && <CompressImageView />}
-          {currentTool === 'favicon' && <FaviconView />}
-        </Suspense>
-      </main>
+      <div className={isDesktop ? 'flex-1 overflow-y-auto' : 'contents'}>
+        <Navbar currentTool={currentTool} onSelectTool={handleSelectTool} />
 
-      {/* Editorial Minimal Footer with Creator Credit */}
-      <footer className="border-t border-border py-6 text-xs text-zinc-500 bg-surface-200/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
-            <span className="font-mono text-white text-[11px] font-medium">DocuCraft Studio</span>
-            <span className="hidden sm:inline text-zinc-600">•</span>
-            <p className="text-[11px] text-zinc-400">
-              Designed & Engineered by{' '}
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <Suspense fallback={<ViewFallback />}>
+            {currentTool === 'overview' && <OverviewView onSelectTool={handleSelectTool} />}
+            {currentTool === 'scanner' && <CamScannerView />}
+            {currentTool === 'organizer' && <OrganizerView />}
+            {currentTool === 'merge' && <MergeView />}
+            {currentTool === 'split' && <SplitView />}
+            {currentTool === 'compress-pdf' && <CompressPdfView />}
+            {currentTool === 'page-number' && <PageNumberView />}
+            {currentTool === 'grayscale' && <GrayscalePdfView />}
+            {currentTool === 'watermark' && <WatermarkView />}
+            {currentTool === 'pas-foto' && <PasFotoView />}
+            {currentTool === 'png-to-jpg' && <PngToJpgView />}
+            {currentTool === 'pdf-to-image' && <PdfToImageView />}
+            {currentTool === 'image-to-pdf' && <ImageToPdfView />}
+            {currentTool === 'compress-image' && <CompressImageView />}
+            {currentTool === 'favicon' && <FaviconView />}
+          </Suspense>
+        </main>
+
+        {/* Editorial Minimal Footer with Creator Credit */}
+        <footer className="border-t border-border py-6 text-xs text-zinc-500 bg-surface-200/50">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+              <span className="font-mono text-white text-[11px] font-medium">DocuCraft Studio</span>
+              <span className="hidden sm:inline text-zinc-600">•</span>
+              <p className="text-[11px] text-zinc-400">
+                Designed &amp; Engineered by{' '}
+                <a
+                  href="https://taufiqu.vercel.app/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-white hover:text-emerald-400 font-medium underline underline-offset-2 transition"
+                >
+                  Taufiqu
+                </a>
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4 text-[11px] font-mono">
               <a
                 href="https://taufiqu.vercel.app/"
                 target="_blank"
                 rel="noreferrer"
-                className="text-white hover:text-emerald-400 font-medium underline underline-offset-2 transition"
+                className="text-zinc-400 hover:text-white transition"
               >
-                Taufiqu
+                Portfolio
               </a>
-            </p>
+              <span className="text-zinc-700">/</span>
+              <a
+                href="https://github.com/Taufiqu"
+                target="_blank"
+                rel="noreferrer"
+                className="text-zinc-400 hover:text-white transition"
+              >
+                GitHub
+              </a>
+              <span className="text-zinc-700">/</span>
+              <a
+                href="https://github.com/Taufiqu/document-tools"
+                target="_blank"
+                rel="noreferrer"
+                className="text-zinc-400 hover:text-white transition"
+              >
+                Source
+              </a>
+            </div>
           </div>
+        </footer>
 
-          <div className="flex items-center gap-4 text-[11px] font-mono">
-            <a
-              href="https://taufiqu.vercel.app/"
-              target="_blank"
-              rel="noreferrer"
-              className="text-zinc-400 hover:text-white transition"
-            >
-              Portfolio
-            </a>
-            <span className="text-zinc-700">/</span>
-            <a
-              href="https://github.com/Taufiqu"
-              target="_blank"
-              rel="noreferrer"
-              className="text-zinc-400 hover:text-white transition"
-            >
-              GitHub
-            </a>
-            <span className="text-zinc-700">/</span>
-            <a
-              href="https://github.com/Taufiqu/document-tools"
-              target="_blank"
-              rel="noreferrer"
-              className="text-zinc-400 hover:text-white transition"
-            >
-              Source
-            </a>
-          </div>
-        </div>
-      </footer>
-
-      {/* Vercel Web Analytics */}
-      <Analytics />
+        {/* Vercel Web Analytics — disabled in Tauri desktop mode */}
+        {!isDesktop && <Analytics />}
+      </div>
     </div>
   );
 }

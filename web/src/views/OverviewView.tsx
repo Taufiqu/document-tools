@@ -13,6 +13,7 @@ import {
   Hash,
   Printer,
   Camera,
+  QrCode,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -144,6 +145,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Generate multi-size .ico files and complete PWA web icon sets with ready-to-use HTML tags.',
           icon: Sparkles,
           tag: 'Web Suite',
+        },
+        {
+          id: 'qr-code',
+          title: 'QR Code Studio',
+          description: 'Generate QR codes and decode them from images or your device camera, entirely locally.',
+          icon: QrCode,
+          tag: 'Generate & Scan',
         },
       ],
     },

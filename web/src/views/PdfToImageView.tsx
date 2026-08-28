@@ -26,6 +26,7 @@ export function PdfToImageView() {
 
   const [format, setFormat] = useState<ImageExportFormat>('png');
   const [scale, setScale] = useState<number>(2.0);
+  const [autoTrimMargins, setAutoTrimMargins] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [progressText, setProgressText] = useState('');
 
@@ -52,7 +53,7 @@ export function PdfToImageView() {
   const handleConvert = async () => {
     if (!rawPdfBytes || !selectedFile) return;
     setIsRendering(true);
-    setProgressText('Rendering pages...');
+    setProgressText(autoTrimMargins ? 'Loading Smart Crop engine...' : 'Rendering pages...');
 
     try {
       const baseName = selectedFile.name.replace(/\.pdf$/i, '');
@@ -63,7 +64,8 @@ export function PdfToImageView() {
         baseName,
         (current: number, total: number) => {
           setProgressText(`Rendering page ${current} of ${total}...`);
-        }
+        },
+        { autoTrimMargins, trimPadding: 16 },
       );
 
       setRenderResult(result);
@@ -190,6 +192,19 @@ export function PdfToImageView() {
               </div>
             </div>
 
+            <label className="flex items-start gap-3 rounded-lg border border-border bg-surface-100 p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={autoTrimMargins}
+                onChange={(event) => setAutoTrimMargins(event.target.checked)}
+                className="mt-0.5 h-3.5 w-3.5 accent-white"
+              />
+              <span>
+                <span className="block text-xs font-medium text-zinc-200">Smart Crop — trim white margins</span>
+                <span className="mt-0.5 block text-[11px] leading-relaxed text-zinc-500">Detect content on every rendered page and keep a small safe border. Best for scanned documents with excess white space.</span>
+              </span>
+            </label>
+
             <button
               onClick={handleConvert}
               disabled={isRendering}
@@ -302,6 +317,7 @@ export function PdfToImageView() {
             },
             { label: 'Format', value: format.toUpperCase() },
             { label: 'Scale', value: `${scale}x` },
+            { label: 'Smart Crop', value: autoTrimMargins ? 'Enabled' : 'Off' },
           ]}
           downloadLabel={
             renderResult.isSinglePage

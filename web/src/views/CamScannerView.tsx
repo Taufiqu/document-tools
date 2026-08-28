@@ -26,6 +26,7 @@ import {
   detectDocumentCorners,
   warpPerspective,
 } from '@/lib/perspective-crop';
+import { detectDocumentWithOpenCv } from '@/lib/opencv-document';
 import {
   ScanFilterType,
   SCAN_FILTER_PRESETS,
@@ -70,6 +71,7 @@ export function CamScannerView() {
   const [activeCorner, setActiveCorner] = useState<keyof QuadCorners | null>(null);
   const cropContainerRef = useRef<HTMLDivElement>(null);
   const [displayScale, setDisplayScale] = useState<number>(1);
+  const [isDetectingCorners, setIsDetectingCorners] = useState(false);
 
   // Filter States
   const [selectedFilter, setSelectedFilter] = useState<ScanFilterType>('magic-color');
@@ -183,9 +185,18 @@ export function CamScannerView() {
     }
   };
 
-  const initCorners = (img: HTMLImageElement) => {
-    const detected = detectDocumentCorners(img);
-    setCorners(detected);
+  const initCorners = async (img: HTMLImageElement) => {
+    // Keep the current lightweight detector as an instant fallback while OpenCV initializes.
+    setCorners(detectDocumentCorners(img));
+    setIsDetectingCorners(true);
+    try {
+      const detected = await detectDocumentWithOpenCv(img);
+      if (detected) setCorners(detected);
+    } catch (error) {
+      console.warn('OpenCV document detection failed; using fallback crop.', error);
+    } finally {
+      setIsDetectingCorners(false);
+    }
   };
 
   // 3. Crop & Corner Dragging
@@ -511,11 +522,12 @@ export function CamScannerView() {
               </button>
 
               <button
-                onClick={() => initCorners(capturedImage)}
+                onClick={() => void initCorners(capturedImage)}
+                disabled={isDetectingCorners}
                 className="px-2 py-1 rounded bg-surface-100 border border-border text-zinc-300 hover:text-white text-xs cursor-pointer"
                 title="Re-detect edges"
               >
-                Auto Detect
+                {isDetectingCorners ? 'Detecting...' : 'Smart Detect'}
               </button>
             </div>
           </div>

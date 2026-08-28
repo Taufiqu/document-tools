@@ -1,4 +1,5 @@
 import JSZip from 'jszip';
+import { trimCanvasMarginsWithOpenCv } from './opencv-document';
 import { PDFDocument } from 'pdf-lib';
 
 /**
@@ -83,6 +84,11 @@ export interface RenderPdfToImagesResult {
   singleImageFilename?: string;
 }
 
+export interface RenderPdfToImagesOptions {
+  autoTrimMargins?: boolean;
+  trimPadding?: number;
+}
+
 /**
  * Renders all pages of a PDF into high-definition images, providing direct single-image access and ZIP packaging.
  */
@@ -91,7 +97,8 @@ export async function renderPdfPagesToImages(
   format: ImageExportFormat = 'png',
   scale = 2.0,
   baseName = 'document',
-  onProgress?: (current: number, total: number) => void
+  onProgress?: (current: number, total: number) => void,
+  options: RenderPdfToImagesOptions = {},
 ): Promise<RenderPdfToImagesResult> {
   const pdfjs = await getPdfJs();
   if (!pdfjs || !pdfjs.getDocument) {
@@ -135,9 +142,12 @@ export async function renderPdfPagesToImages(
       viewport: viewport,
     }).promise;
 
-    const dataUrl = canvas.toDataURL(mimeType, 0.92);
+    const outputCanvas = options.autoTrimMargins
+      ? await trimCanvasMarginsWithOpenCv(canvas, options.trimPadding)
+      : canvas;
+    const dataUrl = outputCanvas.toDataURL(mimeType, 0.92);
     const blob: Blob = await new Promise((resolve) => {
-      canvas.toBlob((b) => resolve(b || new Blob()), mimeType, 0.92);
+      outputCanvas.toBlob((b) => resolve(b || new Blob()), mimeType, 0.92);
     });
 
     const pageNumStr = String(i).padStart(String(totalPages).length, '0');
@@ -148,8 +158,8 @@ export async function renderPdfPagesToImages(
       blob,
       dataUrl,
       filename,
-      width: canvas.width,
-      height: canvas.height,
+      width: outputCanvas.width,
+      height: outputCanvas.height,
     });
 
     zip.file(filename, blob);

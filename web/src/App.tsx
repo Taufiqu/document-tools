@@ -20,6 +20,7 @@ const PdfToImageView = lazy(() => import('./views/PdfToImageView').then((m) => (
 const ImageToPdfView = lazy(() => import('./views/ImageToPdfView').then((m) => ({ default: m.ImageToPdfView })));
 const CompressImageView = lazy(() => import('./views/CompressImageView').then((m) => ({ default: m.CompressImageView })));
 const FaviconView = lazy(() => import('./views/FaviconView').then((m) => ({ default: m.FaviconView })));
+const QrCodeView = lazy(() => import('./views/QrCodeView').then((m) => ({ default: m.QrCodeView })));
 
 function ViewFallback() {
   return (
@@ -90,6 +91,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   favicon: {
     title: 'Favicon & App Icon Pack Generator | DocuCraft',
     desc: 'Generate complete multi-resolution .ico and PNG favicon packages with manifest files for web developers.',
+  },
+  'qr-code': {
+    title: 'QR Code Generator & Scanner | DocuCraft',
+    desc: 'Generate, download, and decode QR codes locally in your browser. Scan QR codes from your camera or image without uploads.',
   },
 };
 
@@ -177,6 +182,7 @@ export function App() {
             {currentTool === 'image-to-pdf' && <ImageToPdfView />}
             {currentTool === 'compress-image' && <CompressImageView />}
             {currentTool === 'favicon' && <FaviconView />}
+            {currentTool === 'qr-code' && <QrCodeView />}
           </Suspense>
         </main>
 

@@ -17,6 +17,7 @@ import {
   Printer,
   Camera,
   ChevronDown,
+  QrCode,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -68,7 +69,10 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       id: 'web',
       label: 'Web Assets',
       icon: Sparkles,
-      items: [{ id: 'favicon', label: 'Favicon Pack', icon: Sparkles }],
+      items: [
+        { id: 'favicon', label: 'Favicon Pack', icon: Sparkles },
+        { id: 'qr-code', label: 'QR Studio', icon: QrCode },
+      ],
     },
   ];
 

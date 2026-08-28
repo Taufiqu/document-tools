@@ -16,6 +16,7 @@ import {
   Hash,
   Printer,
   Camera,
+  ChevronDown,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -26,23 +27,49 @@ interface NavbarProps {
 
 export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
   const [showDesktopModal, setShowDesktopModal] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
-  const navItems = [
-    { id: 'overview', label: 'Overview', icon: Grid },
-    { id: 'scanner', label: 'Cam Scanner', icon: Camera },
-    { id: 'organizer', label: 'Organizer', icon: FileText },
-    { id: 'merge', label: 'Merge', icon: Layers },
-    { id: 'split', label: 'Split', icon: Scissors },
-    { id: 'compress-pdf', label: 'Compress PDF', icon: Minimize },
-    { id: 'page-number', label: 'Page Numbers', icon: Hash },
-    { id: 'grayscale', label: 'Grayscale B&W', icon: Printer },
-    { id: 'watermark', label: 'Watermark', icon: Shield },
-    { id: 'pas-foto', label: 'Pas Foto', icon: Camera },
-    { id: 'png-to-jpg', label: 'PNG to JPG', icon: ImageIcon },
-    { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
-    { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },
-    { id: 'compress-image', label: 'Compress Image', icon: Minimize2 },
-    { id: 'favicon', label: 'Favicon Pack', icon: Sparkles },
+  const toolGroups = [
+    {
+      id: 'pdf',
+      label: 'PDF',
+      icon: FileText,
+      items: [
+        { id: 'organizer', label: 'Organizer', icon: FileText },
+        { id: 'merge', label: 'Merge PDF', icon: Layers },
+        { id: 'split', label: 'Split PDF', icon: Scissors },
+        { id: 'compress-pdf', label: 'Compress PDF', icon: Minimize },
+        { id: 'page-number', label: 'Page Numbers', icon: Hash },
+        { id: 'grayscale', label: 'Grayscale B&W', icon: Printer },
+        { id: 'watermark', label: 'Watermark', icon: Shield },
+      ],
+    },
+    {
+      id: 'image',
+      label: 'Foto & Gambar',
+      icon: ImageIcon,
+      items: [
+        { id: 'scanner', label: 'Cam Scanner', icon: Camera },
+        { id: 'pas-foto', label: 'Pas Foto', icon: Camera },
+        { id: 'png-to-jpg', label: 'PNG to JPG', icon: ImageIcon },
+        { id: 'compress-image', label: 'Compress Image', icon: Minimize2 },
+      ],
+    },
+    {
+      id: 'convert',
+      label: 'Konversi',
+      icon: Download,
+      items: [
+        { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
+        { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },
+      ],
+    },
+    {
+      id: 'web',
+      label: 'Web Assets',
+      icon: Sparkles,
+      items: [{ id: 'favicon', label: 'Favicon Pack', icon: Sparkles }],
+    },
   ];
 
   return (
@@ -107,24 +134,75 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
           </div>
         </div>
 
-        {/* Minimal Segmented Navigation Bar */}
+        {/* Tool navigation grouped by document type */}
         <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none border-t border-border/50 text-xs">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentTool === item.id;
+          <button
+            onClick={() => {
+              setOpenGroup(null);
+              onSelectTool('overview');
+            }}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md whitespace-nowrap transition text-xs font-medium cursor-pointer ${
+              currentTool === 'overview'
+                ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-subtle'
+                : 'text-zinc-400 hover:text-zinc-200 hover:bg-surface-100'
+            }`}
+          >
+            <Grid className={`w-3.5 h-3.5 ${currentTool === 'overview' ? 'text-zinc-950' : 'text-zinc-500'}`} />
+            <span>Overview</span>
+          </button>
+
+          {toolGroups.map((group) => {
+            const Icon = group.icon;
+            const isActive = group.items.some((item) => item.id === currentTool);
+            const isOpen = openGroup === group.id;
+
             return (
-              <button
-                key={item.id}
-                onClick={() => onSelectTool(item.id)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md whitespace-nowrap transition text-xs font-medium cursor-pointer ${
-                  isActive
-                    ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-subtle'
-                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-surface-100'
-                }`}
-              >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-zinc-950' : 'text-zinc-500'}`} />
-                <span>{item.label}</span>
-              </button>
+              <div key={group.id} className="relative">
+                <button
+                  onClick={() => setOpenGroup(isOpen ? null : group.id)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md whitespace-nowrap transition text-xs font-medium cursor-pointer ${
+                    isActive
+                      ? 'bg-zinc-100 text-zinc-950 font-semibold shadow-subtle'
+                      : 'text-zinc-400 hover:text-zinc-200 hover:bg-surface-100'
+                  }`}
+                  aria-expanded={isOpen}
+                  aria-haspopup="menu"
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-zinc-950' : 'text-zinc-500'}`} />
+                  <span>{group.label}</span>
+                  <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isOpen && (
+                  <div
+                    role="menu"
+                    className="absolute left-0 top-full mt-2 z-50 min-w-48 rounded-lg border border-border bg-surface-200 p-1.5 shadow-elevated"
+                  >
+                    {group.items.map((item) => {
+                      const ItemIcon = item.icon;
+                      const itemIsActive = currentTool === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          role="menuitem"
+                          onClick={() => {
+                            setOpenGroup(null);
+                            onSelectTool(item.id);
+                          }}
+                          className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs transition ${
+                            itemIsActive
+                              ? 'bg-zinc-100 font-semibold text-zinc-950'
+                              : 'text-zinc-300 hover:bg-surface-100 hover:text-white'
+                          }`}
+                        >
+                          <ItemIcon className="w-3.5 h-3.5" />
+                          <span>{item.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

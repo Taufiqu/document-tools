@@ -21,6 +21,7 @@ const ImageToPdfView = lazy(() => import('./views/ImageToPdfView').then((m) => (
 const CompressImageView = lazy(() => import('./views/CompressImageView').then((m) => ({ default: m.CompressImageView })));
 const FaviconView = lazy(() => import('./views/FaviconView').then((m) => ({ default: m.FaviconView })));
 const QrCodeView = lazy(() => import('./views/QrCodeView').then((m) => ({ default: m.QrCodeView })));
+const TranslateDocumentView = lazy(() => import('./views/TranslateDocumentView').then((m) => ({ default: m.TranslateDocumentView })));
 
 function ViewFallback() {
   return (
@@ -95,6 +96,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   'qr-code': {
     title: 'QR Code Generator & Scanner | DocuCraft',
     desc: 'Generate, download, and decode QR codes locally in your browser. Scan QR codes from your camera or image without uploads.',
+  },
+  translate: {
+    title: 'Translate DOCX Document Online | DocuCraft',
+    desc: 'Translate DOCX documents while retaining document structure, tables, images, headers, and page settings.',
   },
 };
 
@@ -183,6 +188,7 @@ export function App() {
             {currentTool === 'compress-image' && <CompressImageView />}
             {currentTool === 'favicon' && <FaviconView />}
             {currentTool === 'qr-code' && <QrCodeView />}
+            {currentTool === 'translate' && <TranslateDocumentView />}
           </Suspense>
         </main>
 

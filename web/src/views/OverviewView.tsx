@@ -14,6 +14,7 @@ import {
   Printer,
   Camera,
   QrCode,
+  Languages,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -131,6 +132,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Compile multiple image files into a structured PDF document with custom margins.',
           icon: Download,
           tag: 'Compilation',
+        },
+        {
+          id: 'translate',
+          title: 'Translate Document',
+          description: 'Translate DOCX documents while keeping page setup, tables, images, and document structure.',
+          icon: Languages,
+          tag: 'DOCX',
         },
       ],
     },

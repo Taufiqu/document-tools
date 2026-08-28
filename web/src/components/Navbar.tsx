@@ -18,6 +18,7 @@ import {
   Camera,
   ChevronDown,
   QrCode,
+  Languages,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -63,6 +64,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       items: [
         { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
         { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },
+        { id: 'translate', label: 'Translate Document', icon: Languages },
       ],
     },
     {

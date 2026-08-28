@@ -53,7 +53,9 @@ export function CamScannerView() {
   // Camera States
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [cameraReady, setCameraReady] = useState(false);
   const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [cameraError, setCameraError] = useState<string>('');
 
@@ -103,11 +105,32 @@ export function CamScannerView() {
     };
   }, [step, facingMode]);
 
+  // The video element only exists after cameraActive becomes true. Attach the stream here,
+  // after React has rendered it, otherwise mobile browsers show an empty black video surface.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !stream || step !== 'camera') return;
+
+    video.srcObject = stream;
+    const startPlayback = async () => {
+      try {
+        await video.play();
+      } catch (error) {
+        console.warn('Video playback could not start automatically.', error);
+      }
+    };
+
+    video.addEventListener('loadedmetadata', startPlayback, { once: true });
+    void startPlayback();
+    return () => video.removeEventListener('loadedmetadata', startPlayback);
+  }, [stream, step]);
+
   const startCamera = async () => {
     setCameraError('');
+    setCameraReady(false);
     try {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
       }
 
       const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -119,11 +142,8 @@ export function CamScannerView() {
         audio: false,
       });
 
+      streamRef.current = mediaStream;
       setStream(mediaStream);
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        videoRef.current.play();
-      }
       setCameraActive(true);
     } catch (err: any) {
       console.warn('Camera access error:', err);
@@ -135,10 +155,13 @@ export function CamScannerView() {
   };
 
   const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
       setStream(null);
     }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setCameraReady(false);
     setCameraActive(false);
   };
 
@@ -210,6 +233,7 @@ export function CamScannerView() {
 
   const handlePointerDownCorner = (cornerKey: keyof QuadCorners, e: React.PointerEvent) => {
     e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
     setActiveCorner(cornerKey);
   };
 
@@ -406,8 +430,15 @@ export function CamScannerView() {
                   autoPlay
                   playsInline
                   muted
+                  onLoadedData={() => setCameraReady(true)}
                   className="w-full h-full object-cover"
                 />
+
+                {!cameraReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 text-xs text-zinc-300">
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Starting camera…
+                  </div>
+                )}
 
                 {/* Viewfinder Guide Overlay */}
                 <div className="absolute inset-6 sm:inset-10 border border-white/40 rounded-lg pointer-events-none flex flex-col justify-between p-3">
@@ -537,6 +568,7 @@ export function CamScannerView() {
             ref={cropContainerRef}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
             className="relative w-full bg-black rounded-lg overflow-hidden select-none touch-none border border-border flex items-center justify-center"
             style={{
               aspectRatio: `${capturedImage.naturalWidth} / ${capturedImage.naturalHeight}`,
@@ -584,6 +616,38 @@ export function CamScannerView() {
               );
             })}
           </div>
+
+          {activeCorner && (() => {
+            const point = corners[activeCorner];
+            const zoom = 3;
+            const previewSize = 152;
+            const backgroundWidth = capturedImage.naturalWidth * displayScale * zoom;
+            const backgroundHeight = capturedImage.naturalHeight * displayScale * zoom;
+            const backgroundX = previewSize / 2 - point.x * displayScale * zoom;
+            const backgroundY = previewSize / 2 - point.y * displayScale * zoom;
+
+            return (
+              <div className="flex items-center gap-3 rounded-lg border border-emerald-400/35 bg-surface-100 p-2.5 animate-fade-in">
+                <div
+                  className="relative h-[152px] w-[152px] shrink-0 overflow-hidden rounded-md border border-emerald-400/60 bg-black"
+                  style={{
+                    backgroundImage: `url(${capturedImage.src})`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: `${backgroundWidth}px ${backgroundHeight}px`,
+                    backgroundPosition: `${backgroundX}px ${backgroundY}px`,
+                  }}
+                >
+                  <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-emerald-300/90" />
+                  <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-emerald-300/90" />
+                  <span className="absolute left-1/2 top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium text-white">Precision Preview</p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-zinc-400">Geser titik di gambar utama. Preview ini memperbesar area titik agar tidak tertutup tangan.</p>
+                </div>
+              </div>
+            );
+          })()}
 
           <div className="flex gap-2 pt-2">
             <button

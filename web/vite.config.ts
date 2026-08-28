@@ -1,13 +1,54 @@
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-
-// TAURI_DEV_HOST is set by Tauri CLI in desktop dev mode
-const host = process.env.TAURI_DEV_HOST;
+import translateHandler from './api/translate';
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [react()],
+export default defineConfig(({ mode }) => {
+  // API keys are server-only, but the local Vite middleware needs them in
+  // process.env to exercise the same translation gateway as Vercel.
+  Object.assign(process.env, loadEnv(mode, process.cwd(), ''));
+  const host = process.env.TAURI_DEV_HOST;
+
+  return {
+  plugins: [
+    react(),
+    {
+      name: 'local-translation-api',
+      configureServer(server) {
+        server.middlewares.use('/api/translate', (request, response) => {
+          let rawBody = '';
+          request.on('data', (chunk) => { rawBody += chunk; });
+          request.on('end', async () => {
+            const apiResponse = {
+              status(code: number) {
+                response.statusCode = code;
+                return apiResponse;
+              },
+              json(body: unknown) {
+                response.setHeader('Content-Type', 'application/json');
+                response.end(JSON.stringify(body));
+              },
+              setHeader(name: string, value: string) {
+                response.setHeader(name, value);
+              },
+            };
+
+            try {
+              await translateHandler(
+                { method: request.method, body: rawBody ? JSON.parse(rawBody) : {} },
+                apiResponse,
+              );
+            } catch (error) {
+              response.statusCode = 500;
+              response.setHeader('Content-Type', 'application/json');
+              response.end(JSON.stringify({ error: error instanceof Error ? error.message : 'Local translation API failed' }));
+            }
+          });
+        });
+      },
+    },
+  ],
 
   resolve: {
     alias: {
@@ -45,4 +86,5 @@ export default defineConfig({
       },
     },
   },
+  };
 });

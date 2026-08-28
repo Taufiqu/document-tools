@@ -135,7 +135,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
         </div>
 
         {/* Tool navigation grouped by document type */}
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto py-1.5 scrollbar-none border-t border-border/50 text-xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 flex flex-wrap items-center gap-1 py-1.5 border-t border-border/50 text-xs">
           <button
             onClick={() => {
               setOpenGroup(null);

@@ -60,6 +60,11 @@ web/out/
 web/.env
 web/.env.local
 
+# Tauri / Rust build artifacts
+web/src-tauri/target/
+web/src-tauri/gen/
+web/src-tauri/.tauri/
+
 
 # OS & IDE
 .DS_Store

@@ -21,6 +21,7 @@ const CompressImageView = lazy(() => import('./views/CompressImageView').then((m
 const FaviconView = lazy(() => import('./views/FaviconView').then((m) => ({ default: m.FaviconView })));
 const QrCodeView = lazy(() => import('./views/QrCodeView').then((m) => ({ default: m.QrCodeView })));
 const TranslateDocumentView = lazy(() => import('./views/TranslateDocumentView').then((m) => ({ default: m.TranslateDocumentView })));
+const ScribdView = lazy(() => import('./views/ScribdView').then((m) => ({ default: m.ScribdView })));
 
 function ViewFallback() {
   return (
@@ -95,6 +96,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   translate: {
     title: 'Translate DOCX Document Online | DocuCraft',
     desc: 'Translate DOCX documents while retaining document structure, tables, images, headers, and page settings.',
+  },
+  scribd: {
+    title: 'Scribd to PDF Downloader — Vector Quality | DocuCraft',
+    desc: 'Download any public Scribd document as a searchable vector PDF. Adaptive engine: single-pass for short docs, chunked batches for long documents.',
   },
 };
 
@@ -183,6 +188,7 @@ export function App() {
             {currentTool === 'favicon' && <FaviconView />}
             {currentTool === 'qr-code' && <QrCodeView />}
             {currentTool === 'translate' && <TranslateDocumentView />}
+            {currentTool === 'scribd' && <ScribdView />}
           </Suspense>
         </main>
 

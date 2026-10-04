@@ -14,6 +14,7 @@ import {
   Camera,
   QrCode,
   Languages,
+  BookOpen,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -131,6 +132,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Translate DOCX documents while keeping page setup, tables, images, and document structure.',
           icon: Languages,
           tag: 'DOCX',
+        },
+        {
+          id: 'scribd',
+          title: 'Scribd to PDF',
+          description: 'Download any public Scribd document as a searchable vector PDF. Short docs render in one pass; long docs are batched and merged locally.',
+          icon: BookOpen,
+          tag: 'Adaptive',
         },
       ],
     },

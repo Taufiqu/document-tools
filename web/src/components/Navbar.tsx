@@ -19,6 +19,7 @@ import {
   QrCode,
   Languages,
   BookOpen,
+  FileEdit,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -61,6 +62,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       label: 'Konversi',
       icon: Download,
       items: [
+        { id: 'pdf-to-word', label: 'PDF to Word', icon: FileEdit },
         { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
         { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },
         { id: 'translate', label: 'Translate Document', icon: Languages },

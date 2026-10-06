@@ -15,6 +15,7 @@ import {
   QrCode,
   Languages,
   BookOpen,
+  FileEdit,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -112,6 +113,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
       title: 'Konversi',
       description: 'Ubah dokumen PDF dan gambar ke format yang dibutuhkan.',
       tools: [
+        {
+          id: 'pdf-to-word',
+          title: 'PDF to Word (.docx)',
+          description: 'Convert PDF documents into editable Microsoft Word (.docx) files with paragraphs, headings, and tables preserved.',
+          icon: FileEdit,
+          tag: 'Converter',
+        },
         {
           id: 'pdf-to-image',
           title: 'PDF to Images',

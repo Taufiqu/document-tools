@@ -37,6 +37,7 @@ Experience the studio live in your browser:
 | **PDF** | **Page Numbering** | Add header & footer page indices with custom templates, offsets, and cover skip. |
 | **PDF** | **Grayscale & B&W** | Convert color PDFs to crisp monochrome documents to clean scan shadows and save ink. |
 | **PDF** | **PDF Watermark** | Stamp diagonal semi-transparent text with customizable opacity, rotation, and size. |
+| **PDF** | **PDF to Word** | Reconstruct PDF layouts into editable DOCX files in browser RAM (tables, headings, font styles). |
 | **Photo** | **Pas Foto Studio** | Official ID presets (**2×3, 3×4, 4×6, Paspor**) @ 300 DPI with Red/Blue background replacement. |
 | **Images** | **PNG to JPG** | Batch convert PNGs to high-quality JPG with custom solid background fills. |
 | **Images** | **PDF to Images** | Rasterize PDF pages into high-resolution PNG, JPG, or WebP formats. |

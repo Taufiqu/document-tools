@@ -22,6 +22,7 @@ const FaviconView = lazy(() => import('./views/FaviconView').then((m) => ({ defa
 const QrCodeView = lazy(() => import('./views/QrCodeView').then((m) => ({ default: m.QrCodeView })));
 const TranslateDocumentView = lazy(() => import('./views/TranslateDocumentView').then((m) => ({ default: m.TranslateDocumentView })));
 const ScribdView = lazy(() => import('./views/ScribdView').then((m) => ({ default: m.ScribdView })));
+const PdfToWordView = lazy(() => import('./views/PdfToWordView').then((m) => ({ default: m.PdfToWordView })));
 
 function ViewFallback() {
   return (
@@ -100,6 +101,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   scribd: {
     title: 'Scribd to PDF Downloader — Vector Quality | DocuCraft',
     desc: 'Download any public Scribd document as a searchable vector PDF. Adaptive engine: single-pass for short docs, chunked batches for long documents.',
+  },
+  'pdf-to-word': {
+    title: 'Konversi PDF ke Word (.docx) Gratis & Privat | DocuCraft',
+    desc: 'Ubah PDF menjadi file Microsoft Word (.docx) dengan layout rapi, tabel, dan format teks dipertahankan secara 100% lokal di browser.',
   },
 };
 
@@ -189,6 +194,7 @@ export function App() {
             {currentTool === 'qr-code' && <QrCodeView />}
             {currentTool === 'translate' && <TranslateDocumentView />}
             {currentTool === 'scribd' && <ScribdView />}
+            {currentTool === 'pdf-to-word' && <PdfToWordView />}
           </Suspense>
         </main>
 

@@ -20,6 +20,7 @@
     "@zxing/browser": "^0.2.1",
     "canvas-confetti": "^1.9.3",
     "clsx": "^2.1.1",
+    "docx": "^9.8.1",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",
     "lucide-react": "^0.453.0",

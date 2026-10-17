@@ -24,21 +24,29 @@ const chromium = (chromiumModule as any).default ?? chromiumModule;
 const puppeteer = (puppeteerModule as any).default ?? puppeteerModule;
 
 async function launchBrowser() {
-  if (process.platform === 'win32' || process.platform === 'darwin') {
-    const chromePaths = [
+  const isServerless = !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+  if (!isServerless) {
+    const localPaths = [
+      process.env.CHROME_PATH,
+      '/usr/bin/google-chrome',
+      '/usr/bin/google-chrome-stable',
+      '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
       'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-      process.env.CHROME_PATH,
+      '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     ].filter(Boolean) as string[];
 
-    const executablePath = chromePaths.find((p) => p && fs.existsSync(p));
-    return puppeteer.launch({
-      headless: true,
-      executablePath: executablePath || undefined,
-      channel: executablePath ? undefined : 'chrome',
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    });
+    const executablePath = localPaths.find((p) => p && fs.existsSync(p));
+    if (executablePath) {
+      return puppeteer.launch({
+        headless: true,
+        executablePath,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      });
+    }
   }
 
   return puppeteer.launch({
@@ -90,6 +98,12 @@ export default async function handler(request: RequestLike, response: ResponseLi
 
     // Navigate to the public embed URL (no paywall)
     await page.goto(embedUrl, { waitUntil: 'networkidle2', timeout: 45_000 });
+
+    // Wait for docManager or rendered pages (allows Scribd WAF challenge to settle)
+    await page.waitForFunction(
+      () => !!(window as any).docManager?.pages || document.querySelectorAll('.outer_page').length > 0,
+      { timeout: 20_000 }
+    ).catch(() => {});
 
     // Dismiss cookie banners and remove UI chrome
     await page.evaluate(() => {

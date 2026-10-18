@@ -16,6 +16,7 @@ import {
   Languages,
   BookOpen,
   FileEdit,
+  FileArchive,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -110,9 +111,16 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
     },
     {
       id: 'convert',
-      title: 'Konversi',
-      description: 'Ubah dokumen PDF dan gambar ke format yang dibutuhkan.',
+      title: 'Konversi & Office',
+      description: 'Ubah dan optimalkan dokumen Office (Word, PowerPoint, Excel) serta PDF secara lokal.',
       tools: [
+        {
+          id: 'compress-office',
+          title: 'Compress Office',
+          description: 'Kecilkan ukuran file Word (.docx), PowerPoint (.pptx), dan Excel (.xlsx) dengan kompresi gambar & DEFLATE di RAM.',
+          icon: FileArchive,
+          tag: 'DOCX/PPTX/XLSX',
+        },
         {
           id: 'pdf-to-word',
           title: 'PDF to Word (.docx)',

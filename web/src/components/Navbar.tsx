@@ -20,6 +20,7 @@ import {
   Languages,
   BookOpen,
   FileEdit,
+  FileArchive,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -59,9 +60,10 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
     },
     {
       id: 'convert',
-      label: 'Konversi',
+      label: 'Konversi & Office',
       icon: Download,
       items: [
+        { id: 'compress-office', label: 'Compress Office', icon: FileArchive },
         { id: 'pdf-to-word', label: 'PDF to Word', icon: FileEdit },
         { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },
         { id: 'image-to-pdf', label: 'Images to PDF', icon: Download },

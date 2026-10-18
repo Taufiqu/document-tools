@@ -23,6 +23,7 @@ const QrCodeView = lazy(() => import('./views/QrCodeView').then((m) => ({ defaul
 const TranslateDocumentView = lazy(() => import('./views/TranslateDocumentView').then((m) => ({ default: m.TranslateDocumentView })));
 const ScribdView = lazy(() => import('./views/ScribdView').then((m) => ({ default: m.ScribdView })));
 const PdfToWordView = lazy(() => import('./views/PdfToWordView').then((m) => ({ default: m.PdfToWordView })));
+const CompressOfficeView = lazy(() => import('./views/CompressOfficeView').then((m) => ({ default: m.CompressOfficeView })));
 
 function ViewFallback() {
   return (
@@ -105,6 +106,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   'pdf-to-word': {
     title: 'Konversi PDF ke Word (.docx) Gratis & Privat | DocuCraft',
     desc: 'Ubah PDF menjadi file Microsoft Word (.docx) dengan layout rapi, tabel, dan format teks dipertahankan secara 100% lokal di browser.',
+  },
+  'compress-office': {
+    title: 'Compress Word, PowerPoint & Excel (.docx, .pptx, .xlsx) | DocuCraft',
+    desc: 'Perkecil ukuran file Word, PowerPoint, dan Excel langsung di browser RAM secara privat tanpa kirim ke server.',
   },
 };
 
@@ -195,6 +200,7 @@ export function App() {
             {currentTool === 'translate' && <TranslateDocumentView />}
             {currentTool === 'scribd' && <ScribdView />}
             {currentTool === 'pdf-to-word' && <PdfToWordView />}
+            {currentTool === 'compress-office' && <CompressOfficeView />}
           </Suspense>
         </main>
 

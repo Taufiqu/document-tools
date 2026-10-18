@@ -25,6 +25,7 @@ export interface OfficeCompressResult {
   optimizedImageCount: number;
   docType: OfficeDocType;
   docLabel: string;
+  isAlreadyOptimized: boolean;
 }
 
 /**
@@ -90,7 +91,10 @@ export function isLegacyOfficeFormat(filename: string, headerBytes?: Uint8Array)
 
 /**
  * Compresses an image byte buffer in browser memory using HTML5 Canvas.
- * Maintains format compatibility (JPEG remains JPEG, PNG remains PNG).
+ * - Downsamples high-resolution photos and screenshots.
+ * - Re-encodes JPEG with optimal DCT quality.
+ * - Downsamples PNGs while maintaining valid PNG format and transparency.
+ * - Strictly ensures compressed output is smaller than original.
  */
 async function compressImageBuffer(
   bytes: Uint8Array,
@@ -107,9 +111,11 @@ async function compressImageBuffer(
     return null;
   }
 
-  // Preset configuration
-  const maxDim = level === 'extreme' ? 1280 : level === 'recommended' ? 1920 : 2560;
-  const quality = level === 'extreme' ? 0.65 : level === 'recommended' ? 0.78 : 0.88;
+  // Presets tuned for maximum document size reduction while preserving clarity
+  const maxDim = level === 'extreme' ? 1024 : level === 'recommended' ? 1280 : 1600;
+  const jpegQuality = level === 'extreme' ? 0.60 : level === 'recommended' ? 0.72 : 0.82;
+  const scaleFallback = level === 'extreme' ? 0.75 : level === 'recommended' ? 0.85 : 0.92;
+  const minSizeThreshold = level === 'extreme' ? 40 * 1024 : level === 'recommended' ? 60 * 1024 : 100 * 1024;
 
   const mimeType = isJpeg ? 'image/jpeg' : isPng ? 'image/png' : isWebp ? 'image/webp' : 'image/bmp';
   const arrayBuffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
@@ -124,63 +130,102 @@ async function compressImageBuffer(
       image.src = objectUrl;
     });
 
-    let width = img.naturalWidth || img.width;
-    let height = img.naturalHeight || img.height;
+    const origW = img.naturalWidth || img.width;
+    const origH = img.naturalHeight || img.height;
 
-    if (width === 0 || height === 0) return null;
+    if (origW === 0 || origH === 0) return null;
 
-    let needResize = false;
-    if (width > maxDim || height > maxDim) {
-      needResize = true;
-      if (width > height) {
-        height = Math.round((height * maxDim) / width);
-        width = maxDim;
+    let targetW = origW;
+    let targetH = origH;
+
+    if (targetW > maxDim || targetH > maxDim) {
+      if (targetW > targetH) {
+        targetH = Math.round((targetH * maxDim) / targetW);
+        targetW = maxDim;
       } else {
-        width = Math.round((width * maxDim) / height);
-        height = maxDim;
+        targetW = Math.round((targetW * maxDim) / targetH);
+        targetH = maxDim;
       }
+    } else if (bytes.byteLength > minSizeThreshold) {
+      // If already within maxDim but heavy in weight, scale gently
+      targetW = Math.max(1, Math.round(targetW * scaleFallback));
+      targetH = Math.max(1, Math.round(targetH * scaleFallback));
     }
-
-    // For PNG: only compress if it needs resizing or extreme preset,
-    // to preserve sharpness for logos/diagrams while shrinking giant photos/screenshots.
-    if (isPng && !needResize && level !== 'extreme') {
-      return null;
-    }
-
-    const outFormat = isJpeg ? 'image/jpeg' : isPng ? 'image/png' : isWebp ? 'image/webp' : 'image/jpeg';
 
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = targetW;
+    canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
-    if (outFormat === 'image/jpeg') {
+    let bestBytes: Uint8Array | null = null;
+
+    if (isJpeg) {
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, targetW, targetH);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      const jpegBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/jpeg', jpegQuality);
+      });
+
+      if (jpegBlob) {
+        const buf = await jpegBlob.arrayBuffer();
+        bestBytes = new Uint8Array(buf);
+      }
+    } else if (isPng) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      // Export as downsampled PNG (keeps alpha transparency & 100% valid PNG format)
+      const pngBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png');
+      });
+
+      if (pngBlob) {
+        const buf = await pngBlob.arrayBuffer();
+        bestBytes = new Uint8Array(buf);
+      }
+    } else if (isBmp) {
+      // Convert raw BMP to PNG
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      const pngBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png');
+      });
+
+      if (pngBlob) {
+        const buf = await pngBlob.arrayBuffer();
+        bestBytes = new Uint8Array(buf);
+      }
+    } else if (isWebp) {
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, targetW, targetH);
+
+      const webpBlob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/webp', jpegQuality);
+      });
+
+      if (webpBlob) {
+        const buf = await webpBlob.arrayBuffer();
+        bestBytes = new Uint8Array(buf);
+      }
     }
 
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, 0, 0, width, height);
-
-    const compressedBlob = await new Promise<Blob | null>((resolve) => {
-      canvas.toBlob((b) => resolve(b), outFormat, quality);
-    });
-
-    if (!compressedBlob) return null;
-
-    const compressedArrayBuffer = await compressedBlob.arrayBuffer();
-    const compressedBytes = new Uint8Array(compressedArrayBuffer);
-
-    // Only accept if strictly smaller than original
-    if (compressedBytes.byteLength < bytes.byteLength) {
-      return compressedBytes;
+    // Strictly ensure the optimized version is smaller than original
+    if (bestBytes && bestBytes.byteLength < bytes.byteLength) {
+      return bestBytes;
     }
 
     return null;
   } catch {
-    // If decoding or canvas fails, retain original intact
+    // If decoding or canvas fails on an image, retain original intact
     return null;
   } finally {
     URL.revokeObjectURL(objectUrl);
@@ -191,7 +236,7 @@ async function compressImageBuffer(
  * Compresses an Office document (DOCX, PPTX, XLSX) in browser memory.
  * - Extracts media files from the OpenXML zip archive.
  * - Downsamples and re-compresses embedded raster images.
- * - Repacks archive with maximum DEFLATE compression (level 9).
+ * - Recompresses all XML, drawings, and structural files with DEFLATE level 9.
  */
 export async function compressOfficeDocument(
   file: File,
@@ -218,7 +263,7 @@ export async function compressOfficeDocument(
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(fileBytes);
-  } catch (err) {
+  } catch {
     throw new Error('Gagal membuka berkas: Dokumen bukan arsip OpenXML yang valid atau file rusak.');
   }
 
@@ -236,7 +281,7 @@ export async function compressOfficeDocument(
     const imgPath = imagePaths[i];
     const basename = imgPath.split('/').pop() || imgPath;
 
-    const currentPercent = 10 + Math.round(((i + 1) / totalImages) * 70);
+    const currentPercent = 10 + Math.round(((i + 1) / Math.max(1, totalImages)) * 70);
     onProgress?.({
       message: `Mengoptimalkan gambar ${i + 1} dari ${totalImages} (${basename})...`,
       current: i + 1,
@@ -251,17 +296,33 @@ export async function compressOfficeDocument(
     const optimizedBytes = await compressImageBuffer(originalImgBytes, imgPath, level);
 
     if (optimizedBytes) {
-      zip.file(imgPath, optimizedBytes);
+      zip.file(imgPath, optimizedBytes, {
+        compression: 'DEFLATE',
+        compressionOptions: { level: 9 },
+      });
       optimizedImageCount++;
     }
   }
 
   onProgress?.({
-    message: 'Mengemas ulang dokumen dengan kompresi DEFLATE maksimum...',
+    message: 'Mengemas ulang struktur dokumen dengan kompresi DEFLATE maksimum...',
     current: totalImages,
     total: totalImages,
     percentage: 85,
   });
+
+  // Recompress all non-image files (XMLs, styles, workbook, rels, etc.) with DEFLATE level 9
+  for (const path of Object.keys(zip.files)) {
+    const entry = zip.files[path];
+    if (entry.dir) continue;
+    if (!/\.(jpe?g|png|bmp|webp)$/i.test(path)) {
+      const data = await entry.async('uint8array');
+      zip.file(path, data, {
+        compression: 'DEFLATE',
+        compressionOptions: { level: 9 },
+      });
+    }
+  }
 
   const { type: docType, label: docLabel, mime: targetMime } = detectOfficeType(file.name);
 
@@ -286,14 +347,22 @@ export async function compressOfficeDocument(
   );
 
   const originalSize = file.size;
-  const compressedSize = compressedBlob.size;
+  let compressedSize = compressedBlob.size;
+  let finalBlob = compressedBlob;
+
+  // Never return a file larger than original
+  if (compressedSize >= originalSize) {
+    compressedSize = originalSize;
+    finalBlob = file; // Keep original if already maximally compact
+  }
+
   const reductionPercentage = Math.max(
     0,
     Math.round(((originalSize - compressedSize) / originalSize) * 100)
   );
 
   return {
-    blob: compressedBlob,
+    blob: finalBlob,
     originalSize,
     compressedSize,
     reductionPercentage,
@@ -301,5 +370,6 @@ export async function compressOfficeDocument(
     optimizedImageCount,
     docType,
     docLabel,
+    isAlreadyOptimized: reductionPercentage === 0,
   };
 }

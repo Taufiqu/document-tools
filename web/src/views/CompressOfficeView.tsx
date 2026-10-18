@@ -19,9 +19,8 @@ import {
   Loader2,
   FileArchive,
   Image as ImageIcon,
-  CheckCircle2,
   AlertTriangle,
-  Sparkles,
+  Info,
 } from 'lucide-react';
 
 export function CompressOfficeView() {
@@ -70,7 +69,6 @@ export function CompressOfficeView() {
       });
       setImageCount(images.length);
     } catch {
-      // If inspection fails, still allow compression attempt or show warning
       setImageCount(0);
     }
   };
@@ -188,6 +186,19 @@ export function CompressOfficeView() {
             </button>
           </div>
 
+          {/* Info Notice when 0 images detected */}
+          {imageCount === 0 && !errorMsg && (
+            <div className="p-3.5 rounded-xl bg-surface-200 border border-border/80 flex items-start gap-2.5 text-zinc-300 text-xs">
+              <Info className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-zinc-200 mb-0.5">Dokumen Berbasis Teks/Data</p>
+                <p className="text-zinc-400 leading-relaxed">
+                  Tidak ditemukan gambar raster yang tersemat dalam berkas ini. Format OpenXML (.docx/.xlsx/.pptx) sudah otomatis memadatkan teks dan tabel menggunakan kompresi DEFLATE. Optimasi struktur arsip tetap akan dijalankan.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Error / Warning Notice for legacy format */}
           {errorMsg && (
             <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-800/60 flex items-start gap-2.5 text-amber-200 text-xs">
@@ -212,19 +223,19 @@ export function CompressOfficeView() {
                   {
                     id: 'extreme',
                     title: 'Extreme Compression',
-                    desc: 'Ukuran sekecil mungkin (~60-80% reduksi). Maks 1280px, optimal untuk upload email/portal ketat.',
+                    desc: 'Resolusi gambar maks 1024px & kualitas 60%. Penghematan terbesar (~50-80%), cocok untuk batas email & portal CPNS.',
                     tag: 'Maksimum',
                   },
                   {
                     id: 'recommended',
                     title: 'Recommended',
-                    desc: 'Keseimbangan terbaik (~40-65% reduksi). Gambar Full HD 1080p tetap jernih dan tajam.',
+                    desc: 'Resolusi gambar maks 1280px HD & kualitas 72%. Keseimbangan tajam dan hemat (~35-65%).',
                     tag: 'Optimal',
                   },
                   {
                     id: 'mild',
                     title: 'Mild Compression',
-                    desc: 'Preservasi kualitas tinggi (~20-40% reduksi). Gambar 2K tajam dengan kompresi DEFLATE arsip.',
+                    desc: 'Resolusi gambar maks 1600px & kualitas 82%. Kualitas visual prima (~15-35%).',
                     tag: 'High Quality',
                   },
                 ].map((p) => (
@@ -306,14 +317,24 @@ export function CompressOfficeView() {
           onClose={() => setShowResultModal(false)}
           onDownload={() => downloadBlob(result.blob, resultFilename)}
           onReset={handleReset}
-          title="Dokumen Office Berhasil Dikompresi"
+          title={
+            result.reductionPercentage > 0
+              ? 'Dokumen Office Berhasil Dikompresi'
+              : 'Dokumen Sudah Optimal'
+          }
           filename={resultFilename}
           fileSize={result.compressedSize}
           stats={[
             { label: 'Tipe Dokumen', value: result.docLabel },
             { label: 'Ukuran Awal', value: formatBytes(result.originalSize) },
             { label: 'Ukuran Baru', value: formatBytes(result.compressedSize) },
-            { label: 'Penghematan', value: `-${result.reductionPercentage}%` },
+            {
+              label: 'Penghematan',
+              value:
+                result.reductionPercentage > 0
+                  ? `-${result.reductionPercentage}%`
+                  : '0% (Sudah paling optimal)',
+            },
             {
               label: 'Gambar Dioptimalkan',
               value: `${result.optimizedImageCount} dari ${result.imageCount}`,

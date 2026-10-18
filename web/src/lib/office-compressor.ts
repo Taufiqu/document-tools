@@ -11,10 +11,20 @@ export interface OfficeCompressProgress {
 
 export interface OfficeCompressOptions {
   level?: OfficeCompressionLevel;
+  stripEmbeddedFonts?: boolean;
   onProgress?: (progress: OfficeCompressProgress) => void;
 }
 
 export type OfficeDocType = 'word' | 'powerpoint' | 'excel' | 'office';
+
+export interface OfficeInspection {
+  docType: OfficeDocType;
+  docLabel: string;
+  imageCount: number;
+  fontCount: number;
+  fontTotalBytes: number;
+  isLegacy: boolean;
+}
 
 export interface OfficeCompressResult {
   blob: Blob;
@@ -23,6 +33,8 @@ export interface OfficeCompressResult {
   reductionPercentage: number;
   imageCount: number;
   optimizedImageCount: number;
+  fontCount: number;
+  fontsRemoved: boolean;
   docType: OfficeDocType;
   docLabel: string;
   isAlreadyOptimized: boolean;
@@ -90,11 +102,67 @@ export function isLegacyOfficeFormat(filename: string, headerBytes?: Uint8Array)
 }
 
 /**
+ * Fast inspection of Office document to count images and embedded fonts
+ */
+export async function inspectOfficeDocument(file: File): Promise<OfficeInspection> {
+  const { type: docType, label: docLabel } = detectOfficeType(file.name);
+  const isLegacy = isLegacyOfficeFormat(file.name);
+
+  if (isLegacy) {
+    return {
+      docType,
+      docLabel,
+      imageCount: 0,
+      fontCount: 0,
+      fontTotalBytes: 0,
+      isLegacy: true,
+    };
+  }
+
+  try {
+    const buffer = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+
+    let imageCount = 0;
+    let fontCount = 0;
+    let fontTotalBytes = 0;
+
+    for (const p of Object.keys(zip.files)) {
+      const entry = zip.files[p];
+      if (entry.dir) continue;
+
+      if (/\.(jpe?g|png|bmp|webp)$/i.test(p)) {
+        imageCount++;
+      } else if (/(?:word|ppt)\/fonts\//i.test(p) || /\.(odttf|ttf|fntdata)$/i.test(p)) {
+        fontCount++;
+        // Approximate from entry byte length if possible
+        const u8 = await entry.async('uint8array');
+        fontTotalBytes += u8.byteLength;
+      }
+    }
+
+    return {
+      docType,
+      docLabel,
+      imageCount,
+      fontCount,
+      fontTotalBytes,
+      isLegacy: false,
+    };
+  } catch {
+    return {
+      docType,
+      docLabel,
+      imageCount: 0,
+      fontCount: 0,
+      fontTotalBytes: 0,
+      isLegacy: false,
+    };
+  }
+}
+
+/**
  * Compresses an image byte buffer in browser memory using HTML5 Canvas.
- * - Downsamples high-resolution photos and screenshots.
- * - Re-encodes JPEG with optimal DCT quality.
- * - Downsamples PNGs while maintaining valid PNG format and transparency.
- * - Strictly ensures compressed output is smaller than original.
  */
 async function compressImageBuffer(
   bytes: Uint8Array,
@@ -147,7 +215,7 @@ async function compressImageBuffer(
         targetH = maxDim;
       }
     } else if (bytes.byteLength > minSizeThreshold) {
-      // If already within maxDim but heavy in weight, scale gently
+      // If already within maxDim but heavy in weight, scale down
       targetW = Math.max(1, Math.round(targetW * scaleFallback));
       targetH = Math.max(1, Math.round(targetH * scaleFallback));
     }
@@ -180,7 +248,7 @@ async function compressImageBuffer(
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(img, 0, 0, targetW, targetH);
 
-      // Export as downsampled PNG (keeps alpha transparency & 100% valid PNG format)
+      // Export as downsampled PNG (keeps alpha transparency & valid format)
       const pngBlob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob((b) => resolve(b), 'image/png');
       });
@@ -218,14 +286,12 @@ async function compressImageBuffer(
       }
     }
 
-    // Strictly ensure the optimized version is smaller than original
     if (bestBytes && bestBytes.byteLength < bytes.byteLength) {
       return bestBytes;
     }
 
     return null;
   } catch {
-    // If decoding or canvas fails on an image, retain original intact
     return null;
   } finally {
     URL.revokeObjectURL(objectUrl);
@@ -233,16 +299,69 @@ async function compressImageBuffer(
 }
 
 /**
+ * Removes bloated embedded font files (.odttf, .ttf, .fntdata) and updates XML manifests
+ */
+async function stripDocumentEmbeddedFonts(zip: JSZip, docType: OfficeDocType): Promise<number> {
+  const fontPaths = Object.keys(zip.files).filter(
+    (p) => /(?:word|ppt)\/fonts\//i.test(p) || /\.(odttf|ttf|fntdata)$/i.test(p)
+  );
+
+  if (fontPaths.length === 0) return 0;
+
+  // 1. Remove font binary files from archive
+  for (const p of fontPaths) {
+    zip.remove(p);
+  }
+
+  // 2. Clean Word font declarations
+  if (docType === 'word') {
+    if (zip.file('word/fontTable.xml')) {
+      let xml = await zip.file('word/fontTable.xml')!.async('string');
+      xml = xml.replace(/<w:embed[A-Za-z]+\b[^>]*\/>/g, '');
+      xml = xml.replace(/<w:embed[A-Za-z]+\b[^>]*>[\s\S]*?<\/w:embed[A-Za-z]+>/g, '');
+      zip.file('word/fontTable.xml', xml, { compression: 'DEFLATE', compressionOptions: { level: 9 } });
+    }
+
+    if (zip.file('word/_rels/fontTable.xml.rels')) {
+      zip.file(
+        'word/_rels/fontTable.xml.rels',
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>',
+        { compression: 'DEFLATE', compressionOptions: { level: 9 } }
+      );
+    }
+  }
+
+  // 3. Clean PowerPoint font declarations
+  if (docType === 'powerpoint') {
+    if (zip.file('ppt/presentation.xml')) {
+      let xml = await zip.file('ppt/presentation.xml')!.async('string');
+      xml = xml.replace(/<p:embeddedFontLst\b[^>]*>[\s\S]*?<\/p:embeddedFontLst>/g, '');
+      xml = xml.replace(/<p:embeddedFontLst\b[^>]*\/>/g, '');
+      zip.file('ppt/presentation.xml', xml, { compression: 'DEFLATE', compressionOptions: { level: 9 } });
+    }
+  }
+
+  // 4. Clean [Content_Types].xml
+  if (zip.file('[Content_Types].xml')) {
+    let ct = await zip.file('[Content_Types].xml')!.async('string');
+    ct = ct.replace(/<Default\b[^>]*Extension=["'](?:odttf|ttf|fntdata)["'][^>]*\/>/gi, '');
+    zip.file('[Content_Types].xml', ct, { compression: 'DEFLATE', compressionOptions: { level: 9 } });
+  }
+
+  return fontPaths.length;
+}
+
+/**
  * Compresses an Office document (DOCX, PPTX, XLSX) in browser memory.
- * - Extracts media files from the OpenXML zip archive.
- * - Downsamples and re-compresses embedded raster images.
+ * - Strips bloated embedded fonts (Times New Roman, Arial, etc. embedded in .odttf).
+ * - Extracts and downsamples embedded raster images.
  * - Recompresses all XML, drawings, and structural files with DEFLATE level 9.
  */
 export async function compressOfficeDocument(
   file: File,
   options: OfficeCompressOptions = {}
 ): Promise<OfficeCompressResult> {
-  const { level = 'recommended', onProgress } = options;
+  const { level = 'recommended', stripEmbeddedFonts = true, onProgress } = options;
 
   const fileBytes = new Uint8Array(await file.arrayBuffer());
 
@@ -267,6 +386,24 @@ export async function compressOfficeDocument(
     throw new Error('Gagal membuka berkas: Dokumen bukan arsip OpenXML yang valid atau file rusak.');
   }
 
+  const { type: docType, label: docLabel, mime: targetMime } = detectOfficeType(file.name);
+
+  // Check and strip embedded fonts if requested
+  let fontCount = 0;
+  let fontsRemoved = false;
+  if (stripEmbeddedFonts) {
+    onProgress?.({
+      message: 'Menganalisis font tersemat (Embedded Fonts)...',
+      current: 1,
+      total: 10,
+      percentage: 15,
+    });
+    fontCount = await stripDocumentEmbeddedFonts(zip, docType);
+    if (fontCount > 0) {
+      fontsRemoved = true;
+    }
+  }
+
   // Find all embedded raster image files
   const imagePaths = Object.keys(zip.files).filter((path) => {
     const entry = zip.files[path];
@@ -281,7 +418,7 @@ export async function compressOfficeDocument(
     const imgPath = imagePaths[i];
     const basename = imgPath.split('/').pop() || imgPath;
 
-    const currentPercent = 10 + Math.round(((i + 1) / Math.max(1, totalImages)) * 70);
+    const currentPercent = 25 + Math.round(((i + 1) / Math.max(1, totalImages)) * 55);
     onProgress?.({
       message: `Mengoptimalkan gambar ${i + 1} dari ${totalImages} (${basename})...`,
       current: i + 1,
@@ -323,8 +460,6 @@ export async function compressOfficeDocument(
       });
     }
   }
-
-  const { type: docType, label: docLabel, mime: targetMime } = detectOfficeType(file.name);
 
   // Generate new compressed ZIP with max DEFLATE level 9
   const compressedBlob = await zip.generateAsync(
@@ -368,6 +503,8 @@ export async function compressOfficeDocument(
     reductionPercentage,
     imageCount: totalImages,
     optimizedImageCount,
+    fontCount,
+    fontsRemoved,
     docType,
     docLabel,
     isAlreadyOptimized: reductionPercentage === 0,

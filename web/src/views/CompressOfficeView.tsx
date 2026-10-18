@@ -4,13 +4,12 @@ import { ResultModal } from '@/components/ResultModal';
 import { formatBytes, downloadBlob, stripExtension } from '@/lib/utils';
 import {
   compressOfficeDocument,
-  detectOfficeType,
-  isLegacyOfficeFormat,
+  inspectOfficeDocument,
   OfficeCompressionLevel,
   OfficeCompressProgress,
   OfficeCompressResult,
+  OfficeInspection,
 } from '@/lib/office-compressor';
-import JSZip from 'jszip';
 import {
   FileText,
   FileSpreadsheet,
@@ -21,19 +20,18 @@ import {
   Image as ImageIcon,
   AlertTriangle,
   Info,
+  Type,
+  CheckSquare,
+  Square,
 } from 'lucide-react';
 
 export function CompressOfficeView() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [docInfo, setDocInfo] = useState<{
-    type: 'word' | 'powerpoint' | 'excel' | 'office';
-    label: string;
-    mime: string;
-  } | null>(null);
-  const [imageCount, setImageCount] = useState<number | null>(null);
+  const [inspection, setInspection] = useState<OfficeInspection | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const [level, setLevel] = useState<OfficeCompressionLevel>('recommended');
+  const [stripFonts, setStripFonts] = useState<boolean>(true);
   const [isCompressing, setIsCompressing] = useState(false);
   const [progress, setProgress] = useState<OfficeCompressProgress | null>(null);
 
@@ -47,29 +45,17 @@ export function CompressOfficeView() {
     setErrorMsg(null);
     setSelectedFile(file);
 
-    const info = detectOfficeType(file.name);
-    setDocInfo(info);
-
-    // Check for legacy formats
-    if (isLegacyOfficeFormat(file.name)) {
-      setErrorMsg(
-        'Format berkas .doc / .ppt / .xls (format lawas biner) belum mendukung kompresi OpenXML. Harap simpan ulang berkas ke format modern (.docx / .pptx / .xlsx) di Microsoft Office atau LibreOffice terlebih dahulu.'
-      );
-      setImageCount(0);
-      return;
-    }
-
     try {
-      // Quick inspection of embedded images
-      const buffer = await file.arrayBuffer();
-      const zip = await JSZip.loadAsync(buffer);
-      const images = Object.keys(zip.files).filter((path) => {
-        const entry = zip.files[path];
-        return !entry.dir && /\.(jpe?g|png|bmp|webp)$/i.test(path);
-      });
-      setImageCount(images.length);
+      const insp = await inspectOfficeDocument(file);
+      setInspection(insp);
+
+      if (insp.isLegacy) {
+        setErrorMsg(
+          'Format berkas .doc / .ppt / .xls (format lawas biner) belum mendukung kompresi OpenXML. Harap simpan ulang berkas ke format modern (.docx / .pptx / .xlsx) di Microsoft Office atau LibreOffice terlebih dahulu.'
+        );
+      }
     } catch {
-      setImageCount(0);
+      setErrorMsg('Gagal menganalisis struktur dokumen. Berkas mungkin rusak atau terproteksi kata sandi.');
     }
   };
 
@@ -86,6 +72,7 @@ export function CompressOfficeView() {
     try {
       const res = await compressOfficeDocument(selectedFile, {
         level,
+        stripEmbeddedFonts: stripFonts,
         onProgress: (p) => setProgress(p),
       });
 
@@ -106,20 +93,19 @@ export function CompressOfficeView() {
 
   const handleReset = () => {
     setSelectedFile(null);
-    setDocInfo(null);
-    setImageCount(null);
+    setInspection(null);
     setErrorMsg(null);
     setResult(null);
   };
 
   const renderDocIcon = () => {
-    if (docInfo?.type === 'word') {
+    if (inspection?.docType === 'word') {
       return <FileText className="w-5 h-5 text-blue-400" />;
     }
-    if (docInfo?.type === 'powerpoint') {
+    if (inspection?.docType === 'powerpoint') {
       return <Presentation className="w-5 h-5 text-amber-400" />;
     }
-    if (docInfo?.type === 'excel') {
+    if (inspection?.docType === 'excel') {
       return <FileSpreadsheet className="w-5 h-5 text-emerald-400" />;
     }
     return <FileArchive className="w-5 h-5 text-zinc-400" />;
@@ -147,7 +133,7 @@ export function CompressOfficeView() {
           multiple={false}
           accept=".docx,.pptx,.xlsx,.docm,.pptm,.xlsm,.dotx,.potx,.xltx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           title="Pilih atau drop file Word (.docx), PowerPoint (.pptx), atau Excel (.xlsx)"
-          subtitle="Proses kompresi gambar & arsip DEFLATE berjalan 100% lokal di browser Anda"
+          subtitle="Proses kompresi gambar, font, & arsip DEFLATE berjalan 100% lokal di browser Anda"
         />
       ) : (
         <div className="space-y-4">
@@ -162,16 +148,25 @@ export function CompressOfficeView() {
                   {selectedFile.name}
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-zinc-400 mt-0.5">
-                  <span className="text-zinc-200">{docInfo?.label}</span>
+                  <span className="text-zinc-200">{inspection?.docLabel}</span>
                   <span>•</span>
                   <span>Ukuran: <strong className="text-zinc-200">{formatBytes(selectedFile.size)}</strong></span>
-                  {imageCount !== null && (
+                  {inspection && (
                     <>
                       <span>•</span>
                       <span className="inline-flex items-center gap-1 text-zinc-300">
                         <ImageIcon className="w-3 h-3 text-zinc-400" />
-                        {imageCount} gambar tersemat
+                        {inspection.imageCount} gambar
                       </span>
+                      {inspection.fontCount > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="inline-flex items-center gap-1 text-amber-300 font-semibold">
+                            <Type className="w-3 h-3 text-amber-400" />
+                            {inspection.fontCount} font tersemat ({formatBytes(inspection.fontTotalBytes)})
+                          </span>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -186,14 +181,44 @@ export function CompressOfficeView() {
             </button>
           </div>
 
-          {/* Info Notice when 0 images detected */}
-          {imageCount === 0 && !errorMsg && (
+          {/* Embedded Fonts Alert & Toggle */}
+          {inspection && inspection.fontCount > 0 && !errorMsg && (
+            <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-800/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+              <div className="flex items-start gap-2.5">
+                <Type className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-amber-200">
+                    Ditemukan {inspection.fontCount} font tersemat (~{formatBytes(inspection.fontTotalBytes)})
+                  </p>
+                  <p className="text-amber-200/80 leading-relaxed text-[11px]">
+                    Sebagian besar ukuran dokumen ini disebabkan oleh font duplikat (.odttf). Menghapus font tersemat akan menghemat ukuran hingga 90%+ dan dokumen akan otomatis menggunakan font sistem standar (seperti Times New Roman / Arial) tanpa merusak tampilan.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setStripFonts(!stripFonts)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-700/60 bg-amber-900/40 text-amber-200 hover:bg-amber-900/60 transition cursor-pointer shrink-0 text-xs font-medium"
+              >
+                {stripFonts ? (
+                  <CheckSquare className="w-4 h-4 text-emerald-400" />
+                ) : (
+                  <Square className="w-4 h-4 text-zinc-400" />
+                )}
+                <span>Hapus Font Duplikat</span>
+              </button>
+            </div>
+          )}
+
+          {/* Info Notice when 0 images & 0 fonts detected */}
+          {inspection && inspection.imageCount === 0 && inspection.fontCount === 0 && !errorMsg && (
             <div className="p-3.5 rounded-xl bg-surface-200 border border-border/80 flex items-start gap-2.5 text-zinc-300 text-xs">
               <Info className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold text-zinc-200 mb-0.5">Dokumen Berbasis Teks/Data</p>
                 <p className="text-zinc-400 leading-relaxed">
-                  Tidak ditemukan gambar raster yang tersemat dalam berkas ini. Format OpenXML (.docx/.xlsx/.pptx) sudah otomatis memadatkan teks dan tabel menggunakan kompresi DEFLATE. Optimasi struktur arsip tetap akan dijalankan.
+                  Tidak ditemukan gambar raster atau font tersemat dalam berkas ini. Format OpenXML (.docx/.xlsx/.pptx) sudah otomatis memadatkan teks dan tabel menggunakan kompresi DEFLATE. Optimasi struktur arsip tetap akan dijalankan.
                 </p>
               </div>
             </div>
@@ -335,6 +360,9 @@ export function CompressOfficeView() {
                   ? `-${result.reductionPercentage}%`
                   : '0% (Sudah paling optimal)',
             },
+            ...(result.fontsRemoved
+              ? [{ label: 'Font Tersemat', value: `${result.fontCount} font dibersihkan` }]
+              : []),
             {
               label: 'Gambar Dioptimalkan',
               value: `${result.optimizedImageCount} dari ${result.imageCount}`,

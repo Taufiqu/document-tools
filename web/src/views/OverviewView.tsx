@@ -17,7 +17,6 @@ import {
   BookOpen,
   FileEdit,
   FileArchive,
-  Scissors,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -44,13 +43,6 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Combine multiple PDF documents into one with standardized paper scales (A4, F4, Letter).',
           icon: Layers,
           tag: 'Standardized',
-        },
-        {
-          id: 'split',
-          title: 'PDF Splitter',
-          description: 'Separate PDF pages into individual single-page documents, split by ranges, or extract designated intervals.',
-          icon: Scissors,
-          tag: 'Splitter',
         },
         {
           id: 'compress-pdf',

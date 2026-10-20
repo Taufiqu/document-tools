@@ -21,6 +21,7 @@ import {
   BookOpen,
   FileEdit,
   FileArchive,
+  Scissors,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -41,6 +42,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       items: [
         { id: 'organizer', label: 'PDF Organizer', icon: FileText },
         { id: 'merge', label: 'Merge PDF', icon: Layers },
+        { id: 'split', label: 'Split PDF', icon: Scissors },
         { id: 'compress-pdf', label: 'Compress PDF', icon: Minimize },
         { id: 'page-number', label: 'Page Numbers', icon: Hash },
         { id: 'grayscale', label: 'Grayscale B&W', icon: Printer },

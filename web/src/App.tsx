@@ -9,6 +9,7 @@ const OverviewView = lazy(() => import('./views/OverviewView').then((m) => ({ de
 const CamScannerView = lazy(() => import('./views/CamScannerView').then((m) => ({ default: m.CamScannerView })));
 const OrganizerView = lazy(() => import('./views/OrganizerView').then((m) => ({ default: m.OrganizerView })));
 const MergeView = lazy(() => import('./views/MergeView').then((m) => ({ default: m.MergeView })));
+const SplitView = lazy(() => import('./views/SplitView').then((m) => ({ default: m.SplitView })));
 const CompressPdfView = lazy(() => import('./views/CompressPdfView').then((m) => ({ default: m.CompressPdfView })));
 const PageNumberView = lazy(() => import('./views/PageNumberView').then((m) => ({ default: m.PageNumberView })));
 const GrayscalePdfView = lazy(() => import('./views/GrayscalePdfView').then((m) => ({ default: m.GrayscalePdfView })));
@@ -50,6 +51,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   merge: {
     title: 'Merge PDF Online Gratis — Standardize A4/F4 Folio | DocuCraft',
     desc: 'Combine multiple PDF files into one standardized document (A4, F4, Letter) processed 100% locally in browser memory.',
+  },
+  split: {
+    title: 'Split PDF Online — Pisah Halaman & Range PDF Gratis | DocuCraft',
+    desc: 'Pisah dokumen PDF per halaman tunggal, rentang halaman tertentu (ranges), atau ekstrak halaman spesifik 100% lokal di browser memory.',
   },
   'compress-pdf': {
     title: 'Compress PDF Online — Downsample in Browser RAM | DocuCraft',
@@ -186,6 +191,7 @@ export function App() {
             {currentTool === 'scanner' && <CamScannerView />}
             {currentTool === 'organizer' && <OrganizerView />}
             {currentTool === 'merge' && <MergeView />}
+            {currentTool === 'split' && <SplitView />}
             {currentTool === 'compress-pdf' && <CompressPdfView />}
             {currentTool === 'page-number' && <PageNumberView />}
             {currentTool === 'grayscale' && <GrayscalePdfView />}

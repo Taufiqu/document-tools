@@ -17,6 +17,7 @@ import {
   BookOpen,
   FileEdit,
   FileArchive,
+  PenTool,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -36,6 +37,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Reorder, rotate, remove pages, insert JPG/PNG pages, and export selected pages as a new PDF.',
           icon: FileText,
           tag: 'Visual',
+        },
+        {
+          id: 'pdf-signer',
+          title: 'PDF Signer & Materai',
+          description: 'Bubuhi tanda tangan digital, pasang E-Materai, dan stempel instansi secara presisi dengan live positioning.',
+          icon: PenTool,
+          tag: 'Digital Sign',
         },
         {
           id: 'merge',

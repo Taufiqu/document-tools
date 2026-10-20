@@ -21,6 +21,7 @@ import {
   BookOpen,
   FileEdit,
   FileArchive,
+  PenTool,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -40,6 +41,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       icon: FileText,
       items: [
         { id: 'organizer', label: 'PDF Organizer', icon: FileText },
+        { id: 'pdf-signer', label: 'PDF Signer', icon: PenTool },
         { id: 'merge', label: 'Merge PDF', icon: Layers },
         { id: 'compress-pdf', label: 'Compress PDF', icon: Minimize },
         { id: 'page-number', label: 'Page Numbers', icon: Hash },

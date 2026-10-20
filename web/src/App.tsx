@@ -24,6 +24,7 @@ const TranslateDocumentView = lazy(() => import('./views/TranslateDocumentView')
 const ScribdView = lazy(() => import('./views/ScribdView').then((m) => ({ default: m.ScribdView })));
 const PdfToWordView = lazy(() => import('./views/PdfToWordView').then((m) => ({ default: m.PdfToWordView })));
 const CompressOfficeView = lazy(() => import('./views/CompressOfficeView').then((m) => ({ default: m.CompressOfficeView })));
+const PdfSignerView = lazy(() => import('./views/PdfSignerView').then((m) => ({ default: m.PdfSignerView })));
 
 function ViewFallback() {
   return (
@@ -46,6 +47,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   organizer: {
     title: 'Visual PDF Page Organizer & Reorder | DocuCraft',
     desc: 'Visually rearrange, delete, and rotate PDF pages directly in your browser without uploading files.',
+  },
+  'pdf-signer': {
+    title: 'PDF Signer & E-Materai Studio — Tanda Tangan & Stempel Online | DocuCraft',
+    desc: 'Bubuhi tanda tangan digital, pasang E-Materai, dan stempel instansi secara presisi langsung di browser memory tanpa server upload.',
   },
   merge: {
     title: 'Merge PDF Online Gratis — Standardize A4/F4 Folio | DocuCraft',
@@ -201,6 +206,7 @@ export function App() {
             {currentTool === 'scribd' && <ScribdView />}
             {currentTool === 'pdf-to-word' && <PdfToWordView />}
             {currentTool === 'compress-office' && <CompressOfficeView />}
+            {currentTool === 'pdf-signer' && <PdfSignerView />}
           </Suspense>
         </main>
 

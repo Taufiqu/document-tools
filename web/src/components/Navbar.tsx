@@ -23,6 +23,7 @@ import {
   FileArchive,
   PenTool,
   EyeOff,
+  FileImage,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -67,6 +68,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       label: 'Konversi & Office',
       icon: Download,
       items: [
+        { id: 'extract-images', label: 'Extract Images', icon: FileImage },
         { id: 'compress-office', label: 'Compress Office', icon: FileArchive },
         { id: 'pdf-to-word', label: 'PDF to Word', icon: FileEdit },
         { id: 'pdf-to-image', label: 'PDF to Images', icon: ImageIcon },

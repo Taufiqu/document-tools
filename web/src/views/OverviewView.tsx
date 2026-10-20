@@ -19,6 +19,7 @@ import {
   FileArchive,
   PenTool,
   EyeOff,
+  FileImage,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -130,6 +131,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
       title: 'Konversi & Office',
       description: 'Ubah dan optimalkan dokumen Office (Word, PowerPoint, Excel) serta PDF secara lokal.',
       tools: [
+        {
+          id: 'extract-images',
+          title: 'Extract Images',
+          description: 'Ekstrak seluruh foto dan gambar dari dokumen PDF, Word (.docx), PowerPoint (.pptx), dan Excel (.xlsx) ke format ZIP.',
+          icon: FileImage,
+          tag: 'PDF & Office',
+        },
         {
           id: 'compress-office',
           title: 'Compress Office',

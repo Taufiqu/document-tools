@@ -26,6 +26,7 @@ const PdfToWordView = lazy(() => import('./views/PdfToWordView').then((m) => ({ 
 const CompressOfficeView = lazy(() => import('./views/CompressOfficeView').then((m) => ({ default: m.CompressOfficeView })));
 const PdfSignerView = lazy(() => import('./views/PdfSignerView').then((m) => ({ default: m.PdfSignerView })));
 const PdfRedactView = lazy(() => import('./views/PdfRedactView').then((m) => ({ default: m.PdfRedactView })));
+const ExtractImagesView = lazy(() => import('./views/ExtractImagesView').then((m) => ({ default: m.ExtractImagesView })));
 
 function ViewFallback() {
   return (
@@ -56,6 +57,10 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
   'pdf-redact': {
     title: 'PDF Redact & Privacy Blackout — Sensor Data Sensitif Online | DocuCraft',
     desc: 'Sensor NIK KTP, nomor rekening, alamat, dan data rahasia pada dokumen PDF secara permanen (anti-leak) langsung di browser RAM.',
+  },
+  'extract-images': {
+    title: 'Extract Images from PDF & Office — Ekstrak Gambar Dokumen Online | DocuCraft',
+    desc: 'Ekstrak semua foto, bagan, dan gambar dari file PDF, Word, PowerPoint, dan Excel beresolusi asli ke arsip ZIP secara instan.',
   },
   merge: {
     title: 'Merge PDF Online Gratis — Standardize A4/F4 Folio | DocuCraft',
@@ -213,6 +218,7 @@ export function App() {
             {currentTool === 'compress-office' && <CompressOfficeView />}
             {currentTool === 'pdf-signer' && <PdfSignerView />}
             {currentTool === 'pdf-redact' && <PdfRedactView />}
+            {currentTool === 'extract-images' && <ExtractImagesView />}
           </Suspense>
         </main>
 

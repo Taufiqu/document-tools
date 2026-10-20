@@ -22,6 +22,7 @@ import {
   FileEdit,
   FileArchive,
   PenTool,
+  EyeOff,
 } from 'lucide-react';
 import { PrivacyBadge } from './PrivacyBadge';
 
@@ -42,6 +43,7 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
       items: [
         { id: 'organizer', label: 'PDF Organizer', icon: FileText },
         { id: 'pdf-signer', label: 'PDF Signer', icon: PenTool },
+        { id: 'pdf-redact', label: 'PDF Redact', icon: EyeOff },
         { id: 'merge', label: 'Merge PDF', icon: Layers },
         { id: 'compress-pdf', label: 'Compress PDF', icon: Minimize },
         { id: 'page-number', label: 'Page Numbers', icon: Hash },

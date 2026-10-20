@@ -18,6 +18,7 @@ import {
   FileEdit,
   FileArchive,
   PenTool,
+  EyeOff,
 } from 'lucide-react';
 
 interface OverviewViewProps {
@@ -44,6 +45,13 @@ export function OverviewView({ onSelectTool }: OverviewViewProps) {
           description: 'Bubuhi tanda tangan digital, pasang E-Materai, dan stempel instansi secara presisi dengan live positioning.',
           icon: PenTool,
           tag: 'Digital Sign',
+        },
+        {
+          id: 'pdf-redact',
+          title: 'PDF Redact & Sensor',
+          description: 'Sensor NIK KTP, rekening, dan data sensitif secara permanen (anti-leak) dengan mode secure burn-in.',
+          icon: EyeOff,
+          tag: 'Privacy Shield',
         },
         {
           id: 'merge',

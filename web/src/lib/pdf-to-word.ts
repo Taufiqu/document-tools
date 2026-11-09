@@ -412,6 +412,271 @@ function detectTableBlock(
   };
 }
 
+interface VectorGrid {
+  uniqueY: number[];
+  uniqueX: number[];
+}
+
+/**
+ * Extracts horizontal and vertical grid lines from PDF vector operators (constructPath).
+ * Detects exact table outlines and cell boundaries from PDF drawings.
+ */
+async function extractVectorGrid(page: any, viewport: any): Promise<VectorGrid | null> {
+  try {
+    const ops = await page.getOperatorList();
+    let ctm = [1, 0, 0, 1, 0, 0];
+    const ctmStack: number[][] = [];
+    const hLines: Array<{ y: number; minX: number; maxX: number }> = [];
+    const vLines: Array<{ x: number; minY: number; maxY: number }> = [];
+
+    for (let i = 0; i < ops.fnArray.length; i++) {
+      const fn = ops.fnArray[i];
+      const args = ops.argsArray[i];
+
+      if (fn === 11 && ctmStack.length > 0) { // restore
+        ctm = ctmStack.pop()!;
+      } else if (fn === 10) { // save
+        ctmStack.push([...ctm]);
+      } else if (fn === 12) { // transform
+        const [m0, m1, m2, m3, m4, m5] = args;
+        const [c0, c1, c2, c3, c4, c5] = ctm;
+        ctm = [
+          c0 * m0 + c2 * m1,
+          c1 * m0 + c3 * m1,
+          c0 * m2 + c2 * m3,
+          c1 * m2 + c3 * m3,
+          c0 * m4 + c2 * m5 + c4,
+          c1 * m4 + c3 * m5 + c5,
+        ];
+      } else if (fn === 91) { // constructPath
+        const pOps = args[0];
+        const coords = args[1];
+        if (!pOps || !coords) continue;
+        let cIdx = 0;
+        let curX = 0;
+        let curY = 0;
+
+        for (const pOp of pOps) {
+          if (pOp === 13) { // moveTo
+            const rawX = coords[cIdx++];
+            const rawY = coords[cIdx++];
+            curX = ctm[0] * rawX + ctm[2] * rawY + ctm[4];
+            curY = viewport.height - (ctm[1] * rawX + ctm[3] * rawY + ctm[5]);
+          } else if (pOp === 14) { // lineTo
+            const rawX = coords[cIdx++];
+            const rawY = coords[cIdx++];
+            const toX = ctm[0] * rawX + ctm[2] * rawY + ctm[4];
+            const toY = viewport.height - (ctm[1] * rawX + ctm[3] * rawY + ctm[5]);
+
+            const isH = Math.abs(curY - toY) <= 2 && Math.abs(curX - toX) > 25;
+            const isV = Math.abs(curX - toX) <= 2 && Math.abs(curY - toY) > 25;
+
+            if (isH) {
+              hLines.push({ y: (curY + toY) / 2, minX: Math.min(curX, toX), maxX: Math.max(curX, toX) });
+            } else if (isV) {
+              vLines.push({ x: (curX + toX) / 2, minY: Math.min(curY, toY), maxY: Math.max(curY, toY) });
+            }
+            curX = toX;
+            curY = toY;
+          }
+        }
+      }
+    }
+
+    const wideH = hLines.filter((l) => l.maxX - l.minX > 180);
+    const uniqueY: number[] = [];
+    for (const l of wideH) {
+      if (!uniqueY.some((y) => Math.abs(y - l.y) < 5)) uniqueY.push(l.y);
+    }
+    uniqueY.sort((a, b) => a - b);
+
+    const longV = vLines.filter((l) => l.maxY - l.minY > 60);
+    const uniqueX: number[] = [];
+    for (const l of longV) {
+      if (!uniqueX.some((x) => Math.abs(x - l.x) < 5)) uniqueX.push(l.x);
+    }
+    uniqueX.sort((a, b) => a - b);
+
+    if (uniqueY.length >= 2 && uniqueX.length >= 2) {
+      return { uniqueY, uniqueX };
+    }
+    return null;
+  } catch (err) {
+    console.warn('Vector grid extraction notice:', err);
+    return null;
+  }
+}
+
+/**
+ * Builds an authentic Word Table from an exact vector grid extracted from the PDF.
+ * Correctly partitions multi-line text into cells and preserves column spans.
+ */
+function buildTableFromVectorGrid(
+  grid: VectorGrid,
+  rawItems: RawTextItem[],
+  defaultFont: string,
+): { table: Table; outsideBefore: RawTextItem[]; outsideAfter: RawTextItem[] } {
+  const { uniqueY, uniqueX } = grid;
+  const numRows = uniqueY.length - 1;
+  const numCols = uniqueX.length - 1;
+  const totalTableWidth = uniqueX[uniqueX.length - 1] - uniqueX[0];
+
+  const colWidthsPct: number[] = [];
+  for (let c = 0; c < numCols; c++) {
+    const colW = uniqueX[c + 1] - uniqueX[c];
+    colWidthsPct.push(Math.max(2, Math.round((colW / totalTableWidth) * 100)));
+  }
+
+  const borders = {
+    top: { style: BorderStyle.SINGLE, size: 6, color: '4B5563' },
+    bottom: { style: BorderStyle.SINGLE, size: 6, color: '4B5563' },
+    left: { style: BorderStyle.SINGLE, size: 6, color: '4B5563' },
+    right: { style: BorderStyle.SINGLE, size: 6, color: '4B5563' },
+  };
+
+  const insideItemIds = new Set<RawTextItem>();
+  const tableRows: TableRow[] = [];
+
+  for (let r = 0; r < numRows; r++) {
+    const minY = uniqueY[r];
+    const maxY = uniqueY[r + 1];
+
+    const rowItems = rawItems.filter(
+      (it) => it.y >= minY && it.y < maxY && it.x >= uniqueX[0] - 5 && it.x <= uniqueX[numCols] + 15,
+    );
+    for (const it of rowItems) insideItemIds.add(it);
+
+    // Check if this row is a spanning row (e.g. section VI at bottom where col 1 & 2 merge into 1 wide block)
+    const hasCol2Divider =
+      rowItems.some((it) => it.x >= uniqueX[1] && it.x < uniqueX[2]) &&
+      rowItems.some((it) => it.x >= uniqueX[2]);
+    const isColSpanRow = !hasCol2Divider && numCols >= 3 && rowItems.some((it) => it.x >= uniqueX[1]);
+
+    if (isColSpanRow) {
+      const col0Items = rowItems.filter((it) => it.x < uniqueX[1]);
+      const spanItems = rowItems.filter((it) => it.x >= uniqueX[1]);
+      spanItems.sort((a, b) => (Math.abs(a.y - b.y) <= 4 ? a.x - b.x : a.y - b.y));
+
+      const spanLines: RawTextItem[][] = [];
+      for (const it of spanItems) {
+        let placed = false;
+        for (const line of spanLines) {
+          if (Math.abs(line[0].y - it.y) <= 4) {
+            line.push(it);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) spanLines.push([it]);
+      }
+
+      const cell0 = new TableCell({
+        width: { size: colWidthsPct[0], type: WidthType.PERCENTAGE },
+        borders,
+        margins: { top: 100, bottom: 100, left: 100, right: 100 },
+        children: [
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: col0Items.map((i) => i.str).join(' '),
+                bold: true,
+                font: defaultFont,
+                size: 20,
+              }),
+            ],
+          }),
+        ],
+      });
+
+      const spanCell = new TableCell({
+        columnSpan: numCols - 1,
+        width: { size: 100 - colWidthsPct[0], type: WidthType.PERCENTAGE },
+        borders,
+        margins: { top: 100, bottom: 100, left: 120, right: 120 },
+        children:
+          spanLines.length > 0
+            ? spanLines.map(
+                (l) =>
+                  new Paragraph({
+                    spacing: { before: 20, after: 20, line: 240 },
+                    children: [
+                      new TextRun({
+                        text: l.map((i) => i.str).join(' '),
+                        font: defaultFont,
+                        size: 19,
+                      }),
+                    ],
+                  }),
+              )
+            : [new Paragraph({ children: [new TextRun('')] })],
+      });
+
+      tableRows.push(new TableRow({ children: [cell0, spanCell] }));
+      continue;
+    }
+
+    const rowCells: TableCell[] = [];
+    for (let c = 0; c < numCols; c++) {
+      const minX = uniqueX[c];
+      const maxX = uniqueX[c + 1];
+      const cellItems = rowItems.filter((it) => it.x >= minX && it.x < maxX);
+      cellItems.sort((a, b) => (Math.abs(a.y - b.y) <= 4 ? a.x - b.x : a.y - b.y));
+
+      const cellLines: RawTextItem[][] = [];
+      for (const it of cellItems) {
+        let placed = false;
+        for (const line of cellLines) {
+          if (Math.abs(line[0].y - it.y) <= 4) {
+            line.push(it);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) cellLines.push([it]);
+      }
+
+      const paras =
+        cellLines.length > 0
+          ? cellLines.map(
+              (l) =>
+                new Paragraph({
+                  spacing: { before: 20, after: 20, line: 240 },
+                  children: [
+                    new TextRun({
+                      text: l.map((i) => i.str).join(' '),
+                      bold: l.some((i) => i.isBold),
+                      font: defaultFont,
+                      size: 19,
+                    }),
+                  ],
+                }),
+            )
+          : [new Paragraph({ children: [new TextRun('')] })];
+
+      rowCells.push(
+        new TableCell({
+          width: { size: colWidthsPct[c], type: WidthType.PERCENTAGE },
+          borders,
+          margins: { top: 80, bottom: 80, left: 100, right: 100 },
+          children: paras,
+        }),
+      );
+    }
+
+    tableRows.push(new TableRow({ children: rowCells }));
+  }
+
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: tableRows,
+  });
+
+  const outsideBefore = rawItems.filter((it) => it.y < uniqueY[0] && !insideItemIds.has(it));
+  const outsideAfter = rawItems.filter((it) => it.y >= uniqueY[numRows] && !insideItemIds.has(it));
+
+  return { table, outsideBefore, outsideAfter };
+}
+
 /**
  * Convert detected table data into a docx Table element with crisp, clean borders.
  */
@@ -640,34 +905,129 @@ export async function convertPdfToWord(
           );
         }
       } else {
-        let lineIndex = 0;
-        while (lineIndex < lines.length) {
-          let tableFound = false;
-
-          // Intelligent table detection in structured mode
-          if (mode === 'structured' && detectTables) {
-            const tableResult = detectTableBlock(lines, lineIndex);
-            if (tableResult) {
-              const tableDocx = createDocxTable(tableResult.tableData, defaultFont);
-              docChildren.push(tableDocx);
-              totalTables++;
-              lineIndex += tableResult.linesConsumed;
-              tableFound = true;
+        // 1. First, check for exact vector grid tables (SPPD, forms, bordered reports)
+        let vectorGridHandled = false;
+        if (mode === 'structured' && detectTables) {
+          const vectorGrid = await extractVectorGrid(page, viewport);
+          if (vectorGrid) {
+            const rawItems: RawTextItem[] = [];
+            for (const item of textContent.items) {
+              if (!item.str || item.str.trim() === '') continue;
+              const transform = item.transform || [1, 0, 0, 1, 0, 0];
+              const x = transform[4];
+              const y = viewport.height - transform[5];
+              const fontSize =
+                Math.round(Math.sqrt(transform[0] * transform[0] + transform[1] * transform[1])) ||
+                Math.round(item.height) ||
+                11;
+              rawItems.push({
+                str: item.str,
+                x,
+                y,
+                width: item.width || fontSize * 0.5 * item.str.length,
+                height: item.height || fontSize,
+                fontSize,
+                isBold: isBoldFont(item.fontName || '', ''),
+                isItalic: isItalicFont(item.fontName || '', ''),
+                fontFamily: cleanFontFamily(item.fontName || '', defaultFont),
+              });
             }
-          }
 
-          if (!tableFound) {
-            const currentLine = lines[lineIndex];
-            const para = createDocxParagraph(
-              currentLine,
-              pageWidth,
-              baseFontSize,
-              detectHeadings,
+            const { table, outsideBefore, outsideAfter } = buildTableFromVectorGrid(
+              vectorGrid,
+              rawItems,
               defaultFont,
             );
-            docChildren.push(para);
-            totalParagraphs++;
-            lineIndex++;
+
+            // Output any content before the table
+            if (outsideBefore.length > 0) {
+              outsideBefore.sort((a, b) => (Math.abs(a.y - b.y) <= 4 ? a.x - b.x : a.y - b.y));
+              docChildren.push(
+                new Paragraph({
+                  spacing: { before: 80, after: 80 },
+                  children: [
+                    new TextRun({
+                      text: outsideBefore.map((i) => i.str).join(' '),
+                      font: defaultFont,
+                      size: 22,
+                    }),
+                  ],
+                }),
+              );
+              totalParagraphs++;
+            }
+
+            // Output the authentic Word Table
+            docChildren.push(table);
+            totalTables++;
+
+            // Output any content after the table
+            if (outsideAfter.length > 0) {
+              outsideAfter.sort((a, b) => (Math.abs(a.y - b.y) <= 4 ? a.x - b.x : a.y - b.y));
+              const afterLines: RawTextItem[][] = [];
+              for (const it of outsideAfter) {
+                let placed = false;
+                for (const line of afterLines) {
+                  if (Math.abs(line[0].y - it.y) <= 4) {
+                    line.push(it);
+                    placed = true;
+                    break;
+                  }
+                }
+                if (!placed) afterLines.push([it]);
+              }
+              for (const line of afterLines) {
+                docChildren.push(
+                  new Paragraph({
+                    spacing: { before: 60, after: 60, line: 240 },
+                    children: [
+                      new TextRun({
+                        text: line.map((i) => i.str).join(' '),
+                        font: defaultFont,
+                        size: 20,
+                      }),
+                    ],
+                  }),
+                );
+                totalParagraphs++;
+              }
+            }
+
+            vectorGridHandled = true;
+          }
+        }
+
+        // 2. If no vector grid, process through column clustering and standard lines
+        if (!vectorGridHandled) {
+          let lineIndex = 0;
+          while (lineIndex < lines.length) {
+            let tableFound = false;
+
+            // Intelligent table detection in structured mode
+            if (mode === 'structured' && detectTables) {
+              const tableResult = detectTableBlock(lines, lineIndex);
+              if (tableResult) {
+                const tableDocx = createDocxTable(tableResult.tableData, defaultFont);
+                docChildren.push(tableDocx);
+                totalTables++;
+                lineIndex += tableResult.linesConsumed;
+                tableFound = true;
+              }
+            }
+
+            if (!tableFound) {
+              const currentLine = lines[lineIndex];
+              const para = createDocxParagraph(
+                currentLine,
+                pageWidth,
+                baseFontSize,
+                detectHeadings,
+                defaultFont,
+              );
+              docChildren.push(para);
+              totalParagraphs++;
+              lineIndex++;
+            }
           }
         }
       }

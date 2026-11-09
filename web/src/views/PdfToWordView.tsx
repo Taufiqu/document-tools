@@ -183,13 +183,13 @@ export function PdfToWordView() {
                     Rekomendasi
                   </span>
                 </div>
-                <h4 className="text-xs font-semibold text-zinc-100 mb-1">Format Rapi & Editable</h4>
+                <h4 className="text-xs font-semibold text-zinc-100 mb-1">Teks &amp; Tabel Asli (Editable)</h4>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  Ekstraksi semantik ke teks mengalir, judul, font, dan tabel Word asli yang siap diedit.
+                  Ekstraksi semantik ke teks dan tabel Word asli dengan border rapi, siap diedit langsung tanpa gambar.
                 </p>
               </div>
 
-              {/* Mode 2: Hybrid */}
+              {/* Mode 2: Flowing Text */}
               <div
                 onClick={() => setMode('hybrid')}
                 className={`p-3.5 rounded-lg border text-left cursor-pointer transition-all ${
@@ -201,12 +201,12 @@ export function PdfToWordView() {
                 <div className="flex items-center justify-between mb-2">
                   <Layers className={`w-4 h-4 ${mode === 'hybrid' ? 'text-blue-400' : 'text-zinc-400'}`} />
                   <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-300">
-                    Hibrida
+                    Teks Mengalir
                   </span>
                 </div>
-                <h4 className="text-xs font-semibold text-zinc-100 mb-1">Teks + Grafis Halaman</h4>
+                <h4 className="text-xs font-semibold text-zinc-100 mb-1">Teks Polos Paragraf</h4>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  Menyertakan teks dan tabel yang dapat diedit beserta grafis resolusi tinggi dari PDF.
+                  Mengekstrak teks paragraf secara berurutan dan mengalir tanpa tabel (cocok untuk artikel &amp; laporan).
                 </p>
               </div>
 
@@ -221,13 +221,13 @@ export function PdfToWordView() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <Maximize2 className={`w-4 h-4 ${mode === 'visual' ? 'text-blue-400' : 'text-zinc-400'}`} />
-                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-zinc-700/50 text-zinc-300">
-                    Presisi 1:1
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">
+                    Scan Murni
                   </span>
                 </div>
-                <h4 className="text-xs font-semibold text-zinc-100 mb-1">Replika Visual Penuh</h4>
+                <h4 className="text-xs font-semibold text-zinc-100 mb-1">Replika Gambar Visual</h4>
                 <p className="text-[11px] text-zinc-400 leading-relaxed">
-                  Menjaga 100% tata letak visual halaman (stempel, grafik, tanda tangan, dan sertifikat).
+                  Menyalin tampilan halaman sebagai gambar di berkas Word (khusus scan kamera tanpa teks).
                 </p>
               </div>
             </div>

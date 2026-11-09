@@ -84,6 +84,7 @@ interface TextLine {
 interface DetectedTable {
   rows: Array<Array<string>>;
   colWidths: number[];
+  numCols: number;
 }
 
 /**
@@ -263,6 +264,7 @@ function extractLinesFromPage(
 
 /**
  * Merge adjacent text items on a line into clean coherent words/runs.
+ * Preserves column gaps so items separated by tabular spacing remain distinct items.
  */
 function mergeLineItems(line: TextLine): RawTextItem[] {
   if (line.items.length === 0) return [];
@@ -272,6 +274,11 @@ function mergeLineItems(line: TextLine): RawTextItem[] {
   for (let i = 1; i < line.items.length; i++) {
     const next = line.items[i];
     const gap = next.x - (current.x + current.width);
+    
+    // Column gap threshold: If gap is large, treat as a separate column / cell!
+    const colGapThreshold = Math.max(14, current.fontSize * 1.5);
+    const isColumnSeparated = gap > colGapThreshold;
+
     const sameStyle =
       current.isBold === next.isBold &&
       current.isItalic === next.isItalic &&
@@ -285,7 +292,7 @@ function mergeLineItems(line: TextLine): RawTextItem[] {
       !current.str.endsWith(' ') &&
       !next.str.startsWith(' ');
 
-    if (sameStyle) {
+    if (sameStyle && !isColumnSeparated) {
       if (needsSpace) {
         current.str += ' ' + next.str;
       } else {
@@ -303,87 +310,149 @@ function mergeLineItems(line: TextLine): RawTextItem[] {
 }
 
 /**
- * Detect tables from lines by finding consecutive rows with aligned column gaps.
+ * Detects whether a contiguous block of lines starting at startIndex forms a multi-column table.
+ * Accurately aligns sparse cells and constructs balanced columns even if some cells are empty.
  */
-function detectTableRows(lines: TextLine[]): DetectedTable | null {
-  if (lines.length < 2) return null;
+function detectTableBlock(
+  lines: TextLine[],
+  startIndex: number,
+): { tableData: DetectedTable; linesConsumed: number } | null {
+  if (startIndex >= lines.length) return null;
 
-  // Check if every line in this cluster has multiple items separated by significant gaps
-  const rowCells: Array<Array<string>> = [];
-  const colPositions: number[] = [];
-
-  for (const line of lines) {
-    const merged = mergeLineItems(line);
-    if (merged.length < 2) return null;
-
-    // Must have at least 2 distinct horizontal segments
-    const cells: string[] = [];
-    for (const item of merged) {
-      cells.push(item.str.trim());
-    }
-    rowCells.push(cells);
+  const curMerged = mergeLineItems(lines[startIndex]);
+  // A table block candidate typically has multiple items on line, or the following line does
+  const nextMerged = startIndex + 1 < lines.length ? mergeLineItems(lines[startIndex + 1]) : [];
+  if (curMerged.length < 2 && nextMerged.length < 2) {
+    return null;
   }
 
-  // Verify column consistency
-  const colCount = rowCells[0].length;
-  const isConsistent = rowCells.every(
-    (row) => Math.abs(row.length - colCount) <= 1 && row.length >= 2,
-  );
+  // Look ahead for lines belonging to this table
+  let candidateEnd = startIndex;
+  let multiColCount = 0;
 
-  if (!isConsistent) return null;
+  for (let j = startIndex; j < Math.min(startIndex + 40, lines.length); j++) {
+    const m = mergeLineItems(lines[j]);
+    if (m.length >= 2) multiColCount++;
+    // Break if we hit a long full-width paragraph (e.g. footer notice / article paragraph)
+    if (m.length === 1 && m[0].str.length > 90) {
+      break;
+    }
+    candidateEnd = j;
+  }
 
-  // Determine standard column count
-  const standardCols = Math.max(...rowCells.map((r) => r.length));
-  // Equalized width distribution
-  const colWidthPct = Math.floor(100 / standardCols);
-  const colWidths = Array(standardCols).fill(colWidthPct);
+  const linesCount = candidateEnd - startIndex + 1;
+  if (multiColCount < 2 || linesCount < 2) {
+    return null;
+  }
+
+  const tableLines = lines.slice(startIndex, candidateEnd + 1);
+  const allMerged = tableLines.map((l) => mergeLineItems(l));
+
+  // Collect all item X positions to find distinct column boundaries
+  const xPositions: number[] = [];
+  for (const lineItems of allMerged) {
+    for (const item of lineItems) {
+      xPositions.push(item.x);
+    }
+  }
+  xPositions.sort((a, b) => a - b);
+
+  // Cluster column split boundaries
+  const colSplits: number[] = [];
+  for (let k = 0; k < xPositions.length - 1; k++) {
+    if (xPositions[k + 1] - xPositions[k] > 45) {
+      const splitPoint = (xPositions[k] + xPositions[k + 1]) / 2;
+      if (!colSplits.some((s) => Math.abs(s - splitPoint) < 40)) {
+        colSplits.push(splitPoint);
+      }
+    }
+  }
+  colSplits.sort((a, b) => a - b);
+
+  if (colSplits.length < 1) {
+    return null;
+  }
+
+  const numCols = colSplits.length + 1;
+  const rows: Array<Array<string>> = [];
+
+  for (const lineItems of allMerged) {
+    const rowCells = Array(numCols).fill('');
+    for (const item of lineItems) {
+      let colIdx = 0;
+      while (colIdx < colSplits.length && item.x >= colSplits[colIdx]) {
+        colIdx++;
+      }
+      if (rowCells[colIdx]) {
+        rowCells[colIdx] += ' ' + item.str.trim();
+      } else {
+        rowCells[colIdx] = item.str.trim();
+      }
+    }
+    rows.push(rowCells);
+  }
+
+  // Filter out any completely blank rows
+  const validRows = rows.filter((r) => r.some((c) => c.length > 0));
+  if (validRows.length < 2) {
+    return null;
+  }
+
+  // Calculate proportional column widths
+  const colWidthPct = Math.floor(100 / numCols);
+  const colWidths = Array(numCols).fill(colWidthPct);
 
   return {
-    rows: rowCells,
-    colWidths,
+    tableData: {
+      rows: validRows,
+      colWidths,
+      numCols,
+    },
+    linesConsumed: linesCount,
   };
 }
 
 /**
- * Convert detected table data into a docx Table element.
+ * Convert detected table data into a docx Table element with crisp, clean borders.
  */
 function createDocxTable(tableData: DetectedTable, defaultFont: string): Table {
-  const tableRows: TableRow[] = tableData.rows.map((row, rowIndex) => {
+  const borders = {
+    top: { style: BorderStyle.SINGLE, size: 4, color: '9CA3AF' },
+    bottom: { style: BorderStyle.SINGLE, size: 4, color: '9CA3AF' },
+    left: { style: BorderStyle.SINGLE, size: 4, color: '9CA3AF' },
+    right: { style: BorderStyle.SINGLE, size: 4, color: '9CA3AF' },
+  };
+
+  const colWidthPct = Math.floor(100 / tableData.numCols);
+
+  const tableRows: TableRow[] = tableData.rows.map((row) => {
     const cells: TableCell[] = row.map((cellText) => {
-      const isHeader = rowIndex === 0;
       return new TableCell({
+        width: { size: colWidthPct, type: WidthType.PERCENTAGE },
+        borders,
+        margins: {
+          top: 80,
+          bottom: 80,
+          left: 100,
+          right: 100,
+        },
         children: [
           new Paragraph({
-            alignment: isHeader ? AlignmentType.CENTER : AlignmentType.LEFT,
+            spacing: { before: 20, after: 20, line: 240 },
             children: [
               new TextRun({
                 text: cellText,
-                bold: isHeader,
                 font: defaultFont,
-                size: isHeader ? 22 : 20, // 11pt or 10pt (half-points in docx)
+                size: 19, // ~9.5pt for clean, crisp table cells
               }),
             ],
-            spacing: { before: 80, after: 80 },
           }),
         ],
-        borders: {
-          top: { style: BorderStyle.SINGLE, size: 4, color: 'D0D5DD' },
-          bottom: { style: BorderStyle.SINGLE, size: 4, color: 'D0D5DD' },
-          left: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-          right: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-        },
-        margins: {
-          top: 120,
-          bottom: 120,
-          left: 140,
-          right: 140,
-        },
       });
     });
 
     return new TableRow({
       children: cells,
-      tableHeader: rowIndex === 0,
     });
   });
 
@@ -510,12 +579,11 @@ export async function convertPdfToWord(
     const pageWidth = viewport.width;
     const pageHeight = viewport.height;
 
-    // 1. VISUAL MODE: Render high-fidelity page image snapshot
-    if (mode === 'visual' || mode === 'hybrid') {
+    // 1. VISUAL MODE (or fallback for scanned pages with zero text): Render high-fidelity image snapshot
+    if (mode === 'visual') {
       const pageImageBytes = await renderPageToPngBytes(page, 2.0);
       if (pageImageBytes) {
         totalImages++;
-        // Scale to fit standard Word page margin width (max ~540 pt)
         const maxWidth = Math.min(540, pageWidth);
         const aspect = pageHeight / pageWidth;
         const targetHeight = Math.round(maxWidth * aspect);
@@ -537,10 +605,8 @@ export async function convertPdfToWord(
           }),
         );
       }
-    }
-
-    // 2. STRUCTURED MODE (or Text layer in Hybrid mode): Extract semantic text & tables
-    if (mode === 'structured' || mode === 'hybrid') {
+    } else {
+      // 2. EDITABLE MODES (Structured or Flowing): Extract semantic text & tables
       const textContent = await page.getTextContent({ includeMarkedContent: true });
       const { lines, baseFontSize } = extractLinesFromPage(
         textContent,
@@ -548,40 +614,61 @@ export async function convertPdfToWord(
         defaultFont,
       );
 
-      let lineIndex = 0;
-      while (lineIndex < lines.length) {
-        // Table clustering candidate detection
-        let tableFound = false;
-        if (detectTables && lineIndex + 1 < lines.length) {
-          // Look ahead for 2 to 12 lines that share column structure
-          for (let lookahead = 8; lookahead >= 2; lookahead--) {
-            if (lineIndex + lookahead <= lines.length) {
-              const candidateLines = lines.slice(lineIndex, lineIndex + lookahead);
-              const tableData = detectTableRows(candidateLines);
-              if (tableData) {
-                const tableDocx = createDocxTable(tableData, defaultFont);
-                docChildren.push(tableDocx);
-                totalTables++;
-                lineIndex += lookahead;
-                tableFound = true;
-                break;
-              }
+      // If page is a pure scan with no extractable text layer, fall back to high-res image
+      if (lines.length === 0) {
+        const pageImageBytes = await renderPageToPngBytes(page, 2.0);
+        if (pageImageBytes) {
+          totalImages++;
+          const maxWidth = Math.min(540, pageWidth);
+          const aspect = pageHeight / pageWidth;
+          const targetHeight = Math.round(maxWidth * aspect);
+          docChildren.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new ImageRun({
+                  data: pageImageBytes,
+                  type: 'png',
+                  transformation: {
+                    width: maxWidth,
+                    height: targetHeight,
+                  },
+                }),
+              ],
+              spacing: { before: 100, after: 140 },
+            }),
+          );
+        }
+      } else {
+        let lineIndex = 0;
+        while (lineIndex < lines.length) {
+          let tableFound = false;
+
+          // Intelligent table detection in structured mode
+          if (mode === 'structured' && detectTables) {
+            const tableResult = detectTableBlock(lines, lineIndex);
+            if (tableResult) {
+              const tableDocx = createDocxTable(tableResult.tableData, defaultFont);
+              docChildren.push(tableDocx);
+              totalTables++;
+              lineIndex += tableResult.linesConsumed;
+              tableFound = true;
             }
           }
-        }
 
-        if (!tableFound) {
-          const currentLine = lines[lineIndex];
-          const para = createDocxParagraph(
-            currentLine,
-            pageWidth,
-            baseFontSize,
-            detectHeadings,
-            defaultFont,
-          );
-          docChildren.push(para);
-          totalParagraphs++;
-          lineIndex++;
+          if (!tableFound) {
+            const currentLine = lines[lineIndex];
+            const para = createDocxParagraph(
+              currentLine,
+              pageWidth,
+              baseFontSize,
+              detectHeadings,
+              defaultFont,
+            );
+            docChildren.push(para);
+            totalParagraphs++;
+            lineIndex++;
+          }
         }
       }
     }

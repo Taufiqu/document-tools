@@ -415,6 +415,7 @@ function detectTableBlock(
 interface VectorGrid {
   uniqueY: number[];
   uniqueX: number[];
+  vLines: Array<{ x: number; minY: number; maxY: number }>;
 }
 
 /**
@@ -469,7 +470,7 @@ async function extractVectorGrid(page: any, viewport: any): Promise<VectorGrid |
             const toY = viewport.height - (ctm[1] * rawX + ctm[3] * rawY + ctm[5]);
 
             const isH = Math.abs(curY - toY) <= 2 && Math.abs(curX - toX) > 25;
-            const isV = Math.abs(curX - toX) <= 2 && Math.abs(curY - toY) > 25;
+            const isV = Math.abs(curX - toX) <= 2 && Math.abs(curY - toY) > 20;
 
             if (isH) {
               hLines.push({ y: (curY + toY) / 2, minX: Math.min(curX, toX), maxX: Math.max(curX, toX) });
@@ -490,7 +491,7 @@ async function extractVectorGrid(page: any, viewport: any): Promise<VectorGrid |
     }
     uniqueY.sort((a, b) => a - b);
 
-    const longV = vLines.filter((l) => l.maxY - l.minY > 60);
+    const longV = vLines.filter((l) => l.maxY - l.minY > 30);
     const uniqueX: number[] = [];
     for (const l of longV) {
       if (!uniqueX.some((x) => Math.abs(x - l.x) < 5)) uniqueX.push(l.x);
@@ -498,7 +499,7 @@ async function extractVectorGrid(page: any, viewport: any): Promise<VectorGrid |
     uniqueX.sort((a, b) => a - b);
 
     if (uniqueY.length >= 2 && uniqueX.length >= 2) {
-      return { uniqueY, uniqueX };
+      return { uniqueY, uniqueX, vLines };
     }
     return null;
   } catch (err) {
@@ -509,14 +510,14 @@ async function extractVectorGrid(page: any, viewport: any): Promise<VectorGrid |
 
 /**
  * Builds an authentic Word Table from an exact vector grid extracted from the PDF.
- * Correctly partitions multi-line text into cells and preserves column spans.
+ * Correctly preserves empty cells (e.g. section I in SPPD) and column spans using true vector dividers.
  */
 function buildTableFromVectorGrid(
   grid: VectorGrid,
   rawItems: RawTextItem[],
   defaultFont: string,
 ): { table: Table; outsideBefore: RawTextItem[]; outsideAfter: RawTextItem[] } {
-  const { uniqueY, uniqueX } = grid;
+  const { uniqueY, uniqueX, vLines } = grid;
   const numRows = uniqueY.length - 1;
   const numCols = uniqueX.length - 1;
   const totalTableWidth = uniqueX[uniqueX.length - 1] - uniqueX[0];
@@ -524,7 +525,11 @@ function buildTableFromVectorGrid(
   const colWidthsPct: number[] = [];
   for (let c = 0; c < numCols; c++) {
     const colW = uniqueX[c + 1] - uniqueX[c];
-    colWidthsPct.push(Math.max(2, Math.round((colW / totalTableWidth) * 100)));
+    colWidthsPct.push(Math.round((colW / totalTableWidth) * 100));
+  }
+  const currentSum = colWidthsPct.reduce((a, b) => a + b, 0);
+  if (currentSum !== 100 && colWidthsPct.length > 0) {
+    colWidthsPct[colWidthsPct.length - 1] += 100 - currentSum;
   }
 
   const borders = {
@@ -540,86 +545,39 @@ function buildTableFromVectorGrid(
   for (let r = 0; r < numRows; r++) {
     const minY = uniqueY[r];
     const maxY = uniqueY[r + 1];
+    const midY = (minY + maxY) / 2;
 
     const rowItems = rawItems.filter(
       (it) => it.y >= minY && it.y < maxY && it.x >= uniqueX[0] - 5 && it.x <= uniqueX[numCols] + 15,
     );
     for (const it of rowItems) insideItemIds.add(it);
 
-    // Check if this row is a spanning row (e.g. section VI at bottom where col 1 & 2 merge into 1 wide block)
-    const hasCol2Divider =
-      rowItems.some((it) => it.x >= uniqueX[1] && it.x < uniqueX[2]) &&
-      rowItems.some((it) => it.x >= uniqueX[2]);
-    const isColSpanRow = !hasCol2Divider && numCols >= 3 && rowItems.some((it) => it.x >= uniqueX[1]);
-
-    if (isColSpanRow) {
-      const col0Items = rowItems.filter((it) => it.x < uniqueX[1]);
-      const spanItems = rowItems.filter((it) => it.x >= uniqueX[1]);
-      spanItems.sort((a, b) => (Math.abs(a.y - b.y) <= 4 ? a.x - b.x : a.y - b.y));
-
-      const spanLines: RawTextItem[][] = [];
-      for (const it of spanItems) {
-        let placed = false;
-        for (const line of spanLines) {
-          if (Math.abs(line[0].y - it.y) <= 4) {
-            line.push(it);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) spanLines.push([it]);
-      }
-
-      const cell0 = new TableCell({
-        width: { size: colWidthsPct[0], type: WidthType.PERCENTAGE },
-        borders,
-        margins: { top: 100, bottom: 100, left: 100, right: 100 },
-        children: [
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: col0Items.map((i) => i.str).join(' '),
-                bold: true,
-                font: defaultFont,
-                size: 20,
-              }),
-            ],
-          }),
-        ],
-      });
-
-      const spanCell = new TableCell({
-        columnSpan: numCols - 1,
-        width: { size: 100 - colWidthsPct[0], type: WidthType.PERCENTAGE },
-        borders,
-        margins: { top: 100, bottom: 100, left: 120, right: 120 },
-        children:
-          spanLines.length > 0
-            ? spanLines.map(
-                (l) =>
-                  new Paragraph({
-                    spacing: { before: 20, after: 20, line: 240 },
-                    children: [
-                      new TextRun({
-                        text: l.map((i) => i.str).join(' '),
-                        font: defaultFont,
-                        size: 19,
-                      }),
-                    ],
-                  }),
-              )
-            : [new Paragraph({ children: [new TextRun('')] })],
-      });
-
-      tableRows.push(new TableRow({ children: [cell0, spanCell] }));
-      continue;
-    }
+    const hasDividerAt = (colIndex: number) => {
+      const targetX = uniqueX[colIndex];
+      return vLines.some(
+        (v) => Math.abs(v.x - targetX) < 5 && v.minY <= midY + 10 && v.maxY >= midY - 10,
+      );
+    };
 
     const rowCells: TableCell[] = [];
-    for (let c = 0; c < numCols; c++) {
-      const minX = uniqueX[c];
-      const maxX = uniqueX[c + 1];
-      const cellItems = rowItems.filter((it) => it.x >= minX && it.x < maxX);
+    let cStart = 0;
+
+    while (cStart < numCols) {
+      let cEnd = cStart + 1;
+      while (cEnd < numCols && !hasDividerAt(cEnd)) {
+        cEnd++;
+      }
+
+      const span = cEnd - cStart;
+      const cellWidth = colWidthsPct.slice(cStart, cEnd).reduce((sum, w) => sum + w, 0);
+      const minX = uniqueX[cStart];
+      const maxX = uniqueX[cEnd];
+
+      const cellItems = rowItems.filter(
+        (it) =>
+          (cStart === 0 ? it.x >= minX - 5 : it.x >= minX) &&
+          (cEnd === numCols ? it.x <= maxX + 10 : it.x < maxX),
+      );
       cellItems.sort((a, b) => (Math.abs(a.y - b.y) <= 4 ? a.x - b.x : a.y - b.y));
 
       const cellLines: RawTextItem[][] = [];
@@ -655,12 +613,15 @@ function buildTableFromVectorGrid(
 
       rowCells.push(
         new TableCell({
-          width: { size: colWidthsPct[c], type: WidthType.PERCENTAGE },
+          columnSpan: span > 1 ? span : undefined,
+          width: { size: cellWidth, type: WidthType.PERCENTAGE },
           borders,
           margins: { top: 80, bottom: 80, left: 100, right: 100 },
           children: paras,
         }),
       );
+
+      cStart = cEnd;
     }
 
     tableRows.push(new TableRow({ children: rowCells }));

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Navbar } from './components/Navbar';
-import { TitleBar } from './components/TitleBar';
 import { Loader2 } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -129,9 +128,6 @@ const TOOL_METADATA: Record<string, { title: string; desc: string }> = {
 };
 
 export function App() {
-  // Detect if running inside Tauri desktop environment
-  const [isDesktop, setIsDesktop] = useState(false);
-
   // Sync route with URL hash for bookmarking and back/forward navigation
   const [currentTool, setCurrentTool] = useState<string>(() => {
     if (typeof window !== 'undefined' && window.location.hash) {
@@ -140,13 +136,6 @@ export function App() {
     }
     return 'overview';
   });
-
-  useEffect(() => {
-    // Detect Tauri environment (desktop app)
-    import('@tauri-apps/api/core')
-      .then(({ isTauri }) => setIsDesktop(isTauri()))
-      .catch(() => setIsDesktop(false));
-  }, []);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -188,12 +177,8 @@ export function App() {
   };
 
   return (
-    <div className={`flex flex-col bg-background text-zinc-100 selection:bg-zinc-800 selection:text-white ${isDesktop ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
-      {/* Custom titlebar — only rendered inside Tauri desktop window */}
-      {isDesktop && <TitleBar />}
-
-      <div className={isDesktop ? 'flex-1 overflow-y-auto' : 'contents'}>
-        <Navbar currentTool={currentTool} onSelectTool={handleSelectTool} />
+    <div className="flex flex-col min-h-screen bg-background text-zinc-100 selection:bg-zinc-800 selection:text-white">
+      <Navbar currentTool={currentTool} onSelectTool={handleSelectTool} />
 
         <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <Suspense fallback={<ViewFallback />}>
@@ -272,11 +257,10 @@ export function App() {
           </div>
         </footer>
 
-        {/* Vercel Web Analytics — disabled in Tauri desktop mode */}
-        {!isDesktop && <Analytics />}
+        {/* Vercel Web Analytics */}
+        <Analytics />
       </div>
-    </div>
-  );
-}
+    );
+  }
 
-export default App;
+  export default App;

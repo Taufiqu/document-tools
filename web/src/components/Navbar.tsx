@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Layers,
@@ -35,6 +35,33 @@ interface NavbarProps {
 export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
   const [showDesktopModal, setShowDesktopModal] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstallable, setIsInstallable] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setIsInstallable(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult?.outcome === 'accepted') {
+        setIsInstallable(false);
+      }
+      setDeferredPrompt(null);
+      setShowDesktopModal(false);
+    }
+  };
 
   const toolGroups = [
     {
@@ -142,10 +169,16 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
 
             <button
               onClick={() => setShowDesktopModal(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-100 border border-border hover:border-border-strong text-zinc-400 hover:text-zinc-200 transition text-xs cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-surface-100 border border-border hover:border-border-strong text-zinc-400 hover:text-zinc-200 transition text-xs cursor-pointer relative"
+              title="Install or run as Desktop App"
             >
               <Laptop className="w-3.5 h-3.5 text-zinc-400" />
-              <span className="hidden sm:inline text-[11px]">Desktop</span>
+              <span className="hidden sm:inline text-[11px]">
+                {isInstallable ? 'Install App' : 'Desktop'}
+              </span>
+              {isInstallable && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              )}
             </button>
           </div>
         </div>
@@ -237,32 +270,47 @@ export function Navbar({ currentTool, onSelectTool }: NavbarProps) {
 
             <div className="flex items-center gap-2.5 mb-4">
               <div className="p-2 rounded-lg bg-surface-100 border border-border text-zinc-100">
-                <Laptop className="w-5 h-5" />
+                <Laptop className="w-5 h-5 text-emerald-400" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-white">Desktop Deployment Guide</h3>
-                <p className="text-xs text-zinc-400">Zero-cost standalone desktop options</p>
+                <h3 className="text-base font-semibold text-white">DocuCraft Desktop App</h3>
+                <p className="text-xs text-zinc-400">Zero-install standalone offline experience</p>
               </div>
             </div>
 
             <div className="space-y-3 text-xs text-zinc-300 mb-5">
-              <div className="p-3 rounded-lg bg-surface-100 border border-border">
-                <div className="flex items-center gap-2 font-medium text-white mb-1">
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Option 1: PWA Desktop Install (1-Click)</span>
+              <div className="p-3.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                <div className="flex items-center justify-between gap-2 font-medium text-emerald-400 mb-1.5">
+                  <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-400" />
+                    <span className="font-semibold">PWA Standalone App</span>
+                  </div>
+                  {isInstallable && (
+                    <button
+                      onClick={handleInstallPWA}
+                      className="px-3 py-1 rounded bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs transition cursor-pointer shadow-sm"
+                    >
+                      Install Sekarang
+                    </button>
+                  )}
                 </div>
-                <p className="text-zinc-400 text-[11px] leading-relaxed">
-                  In Chrome or Edge, click the <strong>Install</strong> icon in the address bar to run DocuCraft as a standalone desktop window without browser chrome or warning prompts.
+                <p className="text-zinc-300 text-[11px] leading-relaxed">
+                  Pasang DocuCraft langsung ke Windows Taskbar & Start Menu sebagai aplikasi desktop mandiri. Berjalan 100% offline, tanpa URL bar, dan <strong>bebas popup Windows SmartScreen</strong>.
                 </p>
+                {!isInstallable && (
+                  <p className="text-zinc-400 text-[10px] mt-2 border-t border-emerald-500/20 pt-1.5">
+                    💡 Cara install manual: Di Google Chrome atau Microsoft Edge, klik ikon <strong>Install</strong> / <strong>App available</strong> di pojok kanan address bar browser.
+                  </p>
+                )}
               </div>
 
               <div className="p-3 rounded-lg bg-surface-100 border border-border">
                 <div className="flex items-center gap-2 font-medium text-white mb-1">
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Option 2: Local Certificate Script (Tauri .exe)</span>
+                  <span>100% Client-Side & In-Memory RAM</span>
                 </div>
                 <p className="text-zinc-400 text-[11px] leading-relaxed">
-                  If compiling to a native binary, run <code className="text-zinc-300 bg-surface-50 px-1 py-0.5 rounded font-mono text-[10px]">scripts/trust-cert.ps1</code> once to register your local certificate to Windows Trusted Root.
+                  Semua file diproses di RAM lokal komputer Anda via WebAssembly & HTML5 Canvas. Tidak ada file yang dikirim atau disimpan di server mana pun.
                 </p>
               </div>
             </div>
